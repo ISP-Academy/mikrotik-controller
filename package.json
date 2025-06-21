@@ -1,0 +1,20 @@
+{
+  "name": "mikrotik-web-controller",
+  "version": "1.0.0",
+  "description": "Web interface for controlling MikroTik routers",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "routeros": "^1.6.12",
+    "ssh2": "^1.15.0",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

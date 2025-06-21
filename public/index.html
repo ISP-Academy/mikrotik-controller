@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MikroTik Controller</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MikroTik Router Controller</h1>
+        </header>
+
+        <div class="router-selection">
+            <h2>Router Selection</h2>
+            <div class="recent-routers" id="recentRouters" style="display: none;">
+                <label for="recentSelect">Recent Routers:</label>
+                <select id="recentSelect">
+                    <option value="">Select a recent router...</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <input type="text" id="routerIP" placeholder="Router IP Address (e.g., 192.168.1.1)" />
+                <input type="text" id="username" placeholder="Username" />
+                <input type="password" id="password" placeholder="Password" />
+                <button id="connectBtn">Connect</button>
+            </div>
+            <div id="connectionStatus" class="status"></div>
+        </div>
+
+        <div class="system-info-tile" id="systemInfoTile" style="display: none;">
+            <div class="system-info-header">
+                <h2>Router Information</h2>
+                <div class="refresh-controls">
+                    <label class="refresh-toggle">
+                        <input type="checkbox" id="autoRefreshToggle">
+                        <span class="toggle-text">Auto-refresh</span>
+                    </label>
+                    <div class="refresh-indicator" id="refreshIndicator">
+                        <span class="refresh-icon">🔄</span>
+                        <span class="refresh-text">Refreshing...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">Device Name</div>
+                    <div class="info-value" id="deviceName">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">RouterOS Version</div>
+                    <div class="info-value" id="routerOSVersion">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Model</div>
+                    <div class="info-value" id="deviceModel">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Uptime</div>
+                    <div class="info-value" id="deviceUptime">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">CPU Usage</div>
+                    <div class="info-value" id="cpuUsage">-</div>
+                    <div class="cpu-bar">
+                        <div class="cpu-fill" id="cpuFill"></div>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Memory Usage</div>
+                    <div class="info-value" id="memoryUsage">-</div>
+                    <div class="memory-bar">
+                        <div class="memory-fill" id="memoryFill"></div>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Platform</div>
+                    <div class="info-value" id="platform">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Serial Number</div>
+                    <div class="info-value" id="serialNumber">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-controls-container">
+            <div class="controls" id="controlsSection" style="display: none;">
+                <h2>Router Controls</h2>
+                
+                <div class="button-group">
+                    <h3>Data Retrieval</h3>
+                    <button class="action-btn" onclick="getData('interfaces')">Get Interfaces</button>
+                    <button class="action-btn" onclick="getData('dhcp-leases')">Get DHCP Leases</button>
+                    <button class="action-btn" onclick="getData('ip-addresses')">Get IP Addresses</button>
+                </div>
+
+                <div class="button-group">
+                    <h3>Commands</h3>
+                    <button class="action-btn" onclick="showRebootModal()">Reboot Router</button>
+                    <button class="action-btn" onclick="sendCommand('interface print')">List Interfaces (SSH)</button>
+                    <button class="action-btn" onclick="sendCommand('ip route print')">Show Routes</button>
+                </div>
+
+                <div class="button-group">
+                    <h3>System Update</h3>
+                    <button class="action-btn update-btn" onclick="checkForUpdates()">Check for Updates</button>
+                    <button class="action-btn update-btn" onclick="checkRouterboardFirmware()">RouterBOARD Firmware</button>
+                </div>
+
+                <div class="button-group">
+                    <h3>Queue Management</h3>
+                    <button class="action-btn queue-btn" onclick="openQueueManager()">Manage Queues</button>
+                </div>
+            </div>
+
+            <div class="traffic-monitor" id="trafficSection" style="display: none;">
+                <h2>📊 Traffic Monitor</h2>
+                <div class="traffic-info">
+                    <div id="wanInterface">
+                        WAN Interface: 
+                        <select id="interfaceSelect" onchange="changeWANInterface()">
+                            <option value="">Auto-detect</option>
+                        </select>
+                        <button class="small-btn" onclick="refreshInterfaces()">🔄</button>
+                    </div>
+                    <div id="currentSpeed">Current: <span class="speed-up">↑ 0 Mbps</span> / <span class="speed-down">↓ 0 Mbps</span></div>
+                </div>
+                <div class="traffic-chart-container">
+                    <canvas id="trafficChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="update-panel" id="updatePanel" style="display: none;">
+            <div class="update-header">
+                <h2>🔄 RouterOS Update</h2>
+                <button class="clear-btn" onclick="closeUpdatePanel()">Close</button>
+            </div>
+            <div class="update-content">
+                <div class="update-info" id="updateInfo">
+                    <!-- Update information will be populated here -->
+                </div>
+                <div class="update-actions" id="updateActions" style="display: none;">
+                    <!-- Update actions will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="firmware-panel" id="firmwarePanel" style="display: none;">
+            <div class="firmware-header">
+                <h2>🔧 RouterBOARD Firmware Update</h2>
+                <button class="clear-btn" onclick="closeFirmwarePanel()">Close</button>
+            </div>
+            <div class="firmware-content">
+                <div class="firmware-info" id="firmwareInfo">
+                    <!-- Firmware information will be populated here -->
+                </div>
+                <div class="firmware-actions" id="firmwareActions" style="display: none;">
+                    <!-- Firmware actions will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="queue-panel" id="queuePanel" style="display: none;">
+            <div class="queue-header">
+                <h2>📊 Queue Management</h2>
+                <button class="clear-btn" onclick="closeQueuePanel()">Close</button>
+            </div>
+            <div class="queue-content">
+                <div class="queue-search">
+                    <h3>Find Client Device</h3>
+                    <div class="search-group">
+                        <input type="text" id="searchValue" placeholder="Enter MAC address, hostname, IP address, or comment" />
+                        <button class="queue-btn" onclick="searchForRouter()">Search</button>
+                    </div>
+                </div>
+                
+                <div class="queue-results" id="queueResults" style="display: none;">
+                    <!-- Search results will be populated here -->
+                </div>
+
+                <div class="queue-modify" id="queueModify" style="display: none;">
+                    <h3>Modify CAKE Queue Speeds</h3>
+                    <div class="speed-controls">
+                        <div class="speed-input">
+                            <label for="maxUpload">Max Upload (Mbps):</label>
+                            <input type="text" id="maxUpload" placeholder="e.g., 10, 50, 100" />
+                        </div>
+                        <div class="speed-input">
+                            <label for="maxDownload">Max Download (Mbps):</label>
+                            <input type="text" id="maxDownload" placeholder="e.g., 25, 100, 200" />
+                        </div>
+                        <div class="speed-input">
+                            <label for="queueComment">Comment:</label>
+                            <input type="text" id="queueComment" placeholder="Optional comment for this queue" />
+                        </div>
+                        <div class="speed-actions">
+                            <button class="queue-btn" onclick="updateQueueSpeeds()">Update CAKE Queue</button>
+                            <button class="queue-btn secondary" onclick="removeQueue()">Remove Queue</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="results-display" id="resultsDisplay" style="display: none;">
+            <div class="results-header">
+                <h2 id="resultsTitle">Results</h2>
+                <button class="clear-btn" onclick="clearResults()">Clear</button>
+            </div>
+            <div class="results-content" id="resultsContent">
+                <!-- Dynamic content will be populated here -->
+            </div>
+        </div>
+
+        <div class="output">
+            <h2>Output</h2>
+            <div id="outputArea"></div>
+        </div>
+    </div>
+
+    <!-- Enhanced Reboot Confirmation Modal -->
+    <div class="modal-overlay" id="rebootModal" style="display: none;">
+        <div class="modal-content enhanced-modal">
+            <div class="modal-header">
+                <h3 id="rebootModalTitle">⚠️ Confirm Router Reboot</h3>
+            </div>
+            <div class="modal-body">
+                <p id="rebootModalMessage">Are you sure you want to reboot the router?</p>
+                <p><strong>This will temporarily disconnect all devices and services.</strong></p>
+                <div class="router-info" id="rebootRouterInfo">
+                    <!-- Router info will be populated here -->
+                </div>
+                
+                <!-- Reboot Options -->
+                <div class="reboot-options">
+                    <h4>Reboot Options:</h4>
+                    <div class="option-group">
+                        <label class="radio-option">
+                            <input type="radio" name="rebootOption" value="immediate" checked>
+                            <span class="radio-text">
+                                <strong>Reboot Now</strong>
+                                <br><small>Execute reboot immediately</small>
+                            </span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="rebootOption" value="scheduled">
+                            <span class="radio-text">
+                                <strong>Schedule Reboot</strong>
+                                <br><small>Set a specific date and time</small>
+                            </span>
+                        </label>
+                    </div>
+                    
+                    <!-- Schedule Section -->
+                    <div class="schedule-section" id="scheduleSection" style="display: none;">
+                        <div class="schedule-inputs">
+                            <div class="input-row">
+                                <label for="scheduleDate">Date:</label>
+                                <input type="date" id="scheduleDate" class="schedule-input">
+                            </div>
+                            <div class="input-row">
+                                <label for="scheduleTime">Time:</label>
+                                <input type="time" id="scheduleTime" class="schedule-input">
+                            </div>
+                        </div>
+                        <div class="schedule-info">
+                            <small>⏰ Scheduled reboots will be executed automatically at the specified time</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn cancel-btn" onclick="closeRebootModal()">Cancel</button>
+                <button class="modal-btn confirm-btn" id="confirmRebootBtn" onclick="confirmReboot()">Yes, Reboot Now</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
