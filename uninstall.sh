@@ -15,7 +15,7 @@ $COMPOSE_CMD down
 read -p "Remove downloaded images? (y/N): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    docker rmi yourusername/mikrotik-controller:latest 2>/dev/null || echo "Image not found or already removed"
+    docker rmi ispacademy/mikrotik-controller:latest 2>/dev/null || echo "Image not found or already removed"
     echo "✅ Images removed"
 fi
 

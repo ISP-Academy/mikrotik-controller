@@ -17,7 +17,7 @@ A web-based interface for managing MikroTik routers with features for:
 
 1. **Download the installer:**
    ```bash
-   curl -o install.sh https://raw.githubusercontent.com/yourusername/mikrotik-controller/main/install.sh
+   curl -o install.sh https://raw.githubusercontent.com/ISP-Academy/mikrotik-controller/main/install.sh
    chmod +x install.sh
    ```
 
@@ -33,7 +33,7 @@ A web-based interface for managing MikroTik routers with features for:
 
 To update to the latest version:
 ```bash
-curl -o update.sh https://raw.githubusercontent.com/yourusername/mikrotik-controller/main/update.sh
+curl -o update.sh https://raw.githubusercontent.com/ISP-Academy/mikrotik-controller/main/update.sh
 chmod +x update.sh
 ./update.sh
 ```
@@ -41,7 +41,7 @@ chmod +x update.sh
 ### Uninstall
 
 ```bash
-curl -o uninstall.sh https://raw.githubusercontent.com/yourusername/mikrotik-controller/main/uninstall.sh
+curl -o uninstall.sh https://raw.githubusercontent.com/ISP-Academy/mikrotik-controller/main/uninstall.sh
 chmod +x uninstall.sh
 ./uninstall.sh
 ```
@@ -52,7 +52,7 @@ If you prefer manual installation:
 
 ```bash
 # Download docker-compose.yml
-curl -o docker-compose.yml https://raw.githubusercontent.com/yourusername/mikrotik-controller/main/docker-compose.yml
+curl -o docker-compose.yml https://raw.githubusercontent.com/ISP-Academy/mikrotik-controller/main/docker-compose.yml
 
 # Start the service
 docker-compose up -d
@@ -81,7 +81,7 @@ ports:
 
 ## Support
 
-For issues and support, please visit: [GitHub Issues](https://github.com/yourusername/mikrotik-controller/issues)
+For issues and support, please visit: [GitHub Issues](https://github.com/ISP-Academy/mikrotik-controller/issues)
 
 ## License
 
