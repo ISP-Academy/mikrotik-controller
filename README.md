@@ -1,6 +1,14 @@
 # Guardian Relay
 
-A powerful network management interface for MikroTik routers with features for:
+A comprehensive network management platform for multiple device types including:
+
+## Supported Devices
+- **Routers**: MikroTik router management, queues, updates, and routing
+- **Switches**: VLAN configuration and port management (coming soon)
+- **Wireless APs**: WiFi management and client monitoring (coming soon)
+
+## Features
+- Multi-device type support with layered navigation
 - Router management and monitoring
 - Queue management (bandwidth control)
 - Software updates and firmware upgrades

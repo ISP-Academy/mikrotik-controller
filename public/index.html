@@ -10,7 +10,7 @@
     <div class="container">
         <header>
             <h1>Guardian Relay</h1>
-            <p style="margin: 0; color: #666; font-size: 12px;">Network Management System v1.0.1</p>
+            <p style="margin: 0; color: #666; font-size: 12px;">Network Management System v1.1.0</p>
         </header>
 
         <div class="router-selection">
@@ -87,8 +87,34 @@
         </div>
 
         <div class="main-controls-container">
-            <div class="controls" id="controlsSection" style="display: none;">
-                <h2>Router Controls</h2>
+            <!-- Device Type Selection -->
+            <div class="device-type-selector" id="deviceTypeSection" style="display: none;">
+                <h2>Device Management</h2>
+                <div class="device-grid">
+                    <div class="device-card" onclick="selectDeviceType('router')">
+                        <div class="device-icon">🔧</div>
+                        <h3>Routers</h3>
+                        <p>Manage MikroTik routers, queues, and routing</p>
+                    </div>
+                    <div class="device-card" onclick="selectDeviceType('switch')">
+                        <div class="device-icon">🔌</div>
+                        <h3>Switches</h3>
+                        <p>Configure VLANs, ports, and switching</p>
+                    </div>
+                    <div class="device-card" onclick="selectDeviceType('wireless')">
+                        <div class="device-icon">📡</div>
+                        <h3>Wireless APs</h3>
+                        <p>Manage WiFi access points and wireless settings</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Router Controls (Initially Hidden) -->
+            <div class="controls device-controls" id="routerControls" style="display: none;">
+                <div class="controls-header">
+                    <button class="back-btn" onclick="backToDeviceSelection()">← Back</button>
+                    <h2>Router Controls</h2>
+                </div>
                 
                 <div class="button-group">
                     <h3>Data Retrieval</h3>
@@ -113,6 +139,46 @@
                 <div class="button-group">
                     <h3>Queue Management</h3>
                     <button class="action-btn queue-btn" onclick="openQueueManager()">Manage Queues</button>
+                </div>
+            </div>
+
+            <!-- Switch Controls (Placeholder) -->
+            <div class="controls device-controls" id="switchControls" style="display: none;">
+                <div class="controls-header">
+                    <button class="back-btn" onclick="backToDeviceSelection()">← Back</button>
+                    <h2>Switch Controls</h2>
+                </div>
+                
+                <div class="button-group">
+                    <h3>VLAN Management</h3>
+                    <button class="action-btn" disabled>View VLANs (Coming Soon)</button>
+                    <button class="action-btn" disabled>Configure VLANs (Coming Soon)</button>
+                </div>
+
+                <div class="button-group">
+                    <h3>Port Configuration</h3>
+                    <button class="action-btn" disabled>Port Status (Coming Soon)</button>
+                    <button class="action-btn" disabled>Port Settings (Coming Soon)</button>
+                </div>
+            </div>
+
+            <!-- Wireless Controls (Placeholder) -->
+            <div class="controls device-controls" id="wirelessControls" style="display: none;">
+                <div class="controls-header">
+                    <button class="back-btn" onclick="backToDeviceSelection()">← Back</button>
+                    <h2>Wireless AP Controls</h2>
+                </div>
+                
+                <div class="button-group">
+                    <h3>Wireless Configuration</h3>
+                    <button class="action-btn" disabled>View SSIDs (Coming Soon)</button>
+                    <button class="action-btn" disabled>Configure Wireless (Coming Soon)</button>
+                </div>
+
+                <div class="button-group">
+                    <h3>Client Management</h3>
+                    <button class="action-btn" disabled>Connected Clients (Coming Soon)</button>
+                    <button class="action-btn" disabled>Signal Strength (Coming Soon)</button>
                 </div>
             </div>
 

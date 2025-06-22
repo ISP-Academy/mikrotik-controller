@@ -139,7 +139,10 @@ function clearAllRouterData() {
     
     // Hide system info and controls until connected
     document.getElementById('systemInfoTile').style.display = 'none';
-    document.getElementById('controlsSection').style.display = 'none';
+    document.getElementById('deviceTypeSection').style.display = 'none';
+    document.getElementById('routerControls').style.display = 'none';
+    document.getElementById('switchControls').style.display = 'none';
+    document.getElementById('wirelessControls').style.display = 'none';
     document.getElementById('trafficSection').style.display = 'none';
     
     // Traffic monitoring will stop automatically with auto-refresh
@@ -242,7 +245,7 @@ async function connectToRouter() {
             currentRouter = { ip, username, password };
             showStatus(`Connected to ${ip} successfully`, 'success');
             document.getElementById('systemInfoTile').style.display = 'block';
-            document.getElementById('controlsSection').style.display = 'block';
+            document.getElementById('deviceTypeSection').style.display = 'block';
             document.getElementById('trafficSection').style.display = 'block';
             
             // Initialize traffic monitoring
@@ -1971,4 +1974,44 @@ async function getTrafficData() {
     } catch (error) {
         console.error('Error getting traffic data:', error);
     }
+}
+
+// Device Type Selection Functions
+function selectDeviceType(deviceType) {
+    // Hide device type selector
+    document.getElementById('deviceTypeSection').style.display = 'none';
+    
+    // Hide all device controls
+    document.getElementById('routerControls').style.display = 'none';
+    document.getElementById('switchControls').style.display = 'none';
+    document.getElementById('wirelessControls').style.display = 'none';
+    
+    // Show selected device controls
+    switch(deviceType) {
+        case 'router':
+            document.getElementById('routerControls').style.display = 'block';
+            break;
+        case 'switch':
+            document.getElementById('switchControls').style.display = 'block';
+            break;
+        case 'wireless':
+            document.getElementById('wirelessControls').style.display = 'block';
+            break;
+    }
+    
+    // Store current device type
+    window.currentDeviceType = deviceType;
+}
+
+function backToDeviceSelection() {
+    // Show device type selector
+    document.getElementById('deviceTypeSection').style.display = 'block';
+    
+    // Hide all device controls
+    document.getElementById('routerControls').style.display = 'none';
+    document.getElementById('switchControls').style.display = 'none';
+    document.getElementById('wirelessControls').style.display = 'none';
+    
+    // Clear current device type
+    window.currentDeviceType = null;
 }

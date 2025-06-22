@@ -1,6 +1,6 @@
 {
   "name": "guardian-relay",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Guardian Relay - Network management interface for MikroTik routers",
   "main": "src/server.js",
   "scripts": {
