@@ -1,6 +1,6 @@
-# MikroTik Router Controller
+# Guardian Relay
 
-A web-based interface for managing MikroTik routers with features for:
+A powerful network management interface for MikroTik routers with features for:
 - Router management and monitoring
 - Queue management (bandwidth control)
 - Software updates and firmware upgrades

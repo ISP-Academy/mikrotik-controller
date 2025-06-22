@@ -1,7 +1,7 @@
 {
-  "name": "mikrotik-web-controller",
-  "version": "1.0.0",
-  "description": "Web interface for controlling MikroTik routers",
+  "name": "guardian-relay",
+  "version": "1.0.1",
+  "description": "Guardian Relay - Network management interface for MikroTik routers",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

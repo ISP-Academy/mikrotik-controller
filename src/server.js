@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`MikroTik Controller server running on http://0.0.0.0:${PORT}`);
+    console.log(`Guardian Relay server running on http://0.0.0.0:${PORT}`);
     console.log(`Access from Windows at: http://172.24.112.158:${PORT}`);
 });
 
