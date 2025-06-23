@@ -104,14 +104,14 @@ async function ensureCakeQueueTypeExists(routerConfig) {
             host: routerConfig.ip,
             username: routerConfig.username,
             password: routerConfig.password,
-            port: 22,
+            port: parseInt(routerConfig.sshPort || '22'),
             readyTimeout: 8000
         });
     });
 }
 
 router.post('/connect', async (req, res) => {
-    const { ip, username, password } = req.body;
+    const { ip, username, password, sshPort = '22', apiPort = '8728' } = req.body;
     
     const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Connection timeout - API may not be enabled')), 8000);
@@ -122,7 +122,7 @@ router.post('/connect', async (req, res) => {
             host: ip,
             user: username,
             password: password,
-            port: 8728,
+            port: parseInt(apiPort),
             timeout: 5000
         });
         
@@ -166,7 +166,7 @@ router.post('/data', async (req, res) => {
             host: routerConfig.ip,
             user: routerConfig.username,
             password: routerConfig.password,
-            port: 8728,
+            port: parseInt(routerConfig.apiPort || '8728'),
             timeout: 10000
         });
         
@@ -182,6 +182,15 @@ router.post('/data', async (req, res) => {
                 break;
             case 'ip-addresses':
                 data = await api.write('/ip/address/print');
+                break;
+            case 'routes':
+                data = await api.write('/ip/route/print');
+                break;
+            case 'vlans':
+                data = await api.write('/interface/bridge/vlan/print');
+                break;
+            case 'bridge-ports':
+                data = await api.write('/interface/bridge/port/print');
                 break;
             case 'update-check':
                 // Get current system info and package info via API
@@ -200,6 +209,9 @@ router.post('/data', async (req, res) => {
                 data = await api.write('/system/identity/print');
                 const resource = await api.write('/system/resource/print');
                 data = { identity: data, resource: resource };
+                break;
+            case 'system-clock':
+                data = await api.write('/system/clock/print');
                 break;
             default:
                 throw new Error('Unknown data type');
@@ -279,7 +291,7 @@ router.post('/command', async (req, res) => {
         host: routerConfig.ip,
         username: routerConfig.username,
         password: routerConfig.password,
-        port: 22,
+        port: parseInt(routerConfig.sshPort || '22'),
         readyTimeout: 8000
     });
 });
@@ -389,7 +401,7 @@ router.post('/upgrade', async (req, res) => {
         host: routerConfig.ip,
         username: routerConfig.username,
         password: routerConfig.password,
-        port: 22,
+        port: parseInt(routerConfig.sshPort || '22'),
         readyTimeout: 15000
     });
 });
@@ -471,7 +483,7 @@ router.post('/update-versions', async (req, res) => {
         host: routerConfig.ip,
         username: routerConfig.username,
         password: routerConfig.password,
-        port: 22,
+        port: parseInt(routerConfig.sshPort || '22'),
         readyTimeout: 10000
     });
 });
@@ -601,7 +613,7 @@ router.post('/routerboard-firmware', async (req, res) => {
         host: routerConfig.ip,
         username: routerConfig.username,
         password: routerConfig.password,
-        port: 22,
+        port: parseInt(routerConfig.sshPort || '22'),
         readyTimeout: 10000
     });
 });
@@ -614,7 +626,7 @@ router.post('/queue-search', async (req, res) => {
             host: routerConfig.ip,
             user: routerConfig.username,
             password: routerConfig.password,
-            port: 8728,
+            port: parseInt(routerConfig.apiPort || '8728'),
             timeout: 10000
         });
         
@@ -701,7 +713,7 @@ router.post('/queue-modify', async (req, res) => {
             host: routerConfig.ip,
             user: routerConfig.username,
             password: routerConfig.password,
-            port: 8728,
+            port: parseInt(routerConfig.apiPort || '8728'),
             timeout: 10000
         });
         
@@ -728,7 +740,27 @@ router.post('/queue-modify', async (req, res) => {
                 
                 // First remove existing queue, then create new one
                 const removeCommand = `:foreach i in=[/queue/simple/find where target="${targetIP}"] do={/queue/simple/remove $i}`;
-                const createCommand = `/queue/simple/add name="${queueData.target}" target="${queueData.target}" queue="CAKE/CAKE" max-limit="${queueData.maxUpload}/${queueData.maxDownload}" comment="${queueData.comment || 'ADDED-THROUGH-GUARDIAN.RELAY -- '}"`;
+                
+                // Build the create command with optional burst parameters
+                let createCommand = `/queue/simple/add name="${queueData.target}" target="${queueData.target}" queue="CAKE/CAKE" max-limit="${queueData.maxUpload}/${queueData.maxDownload}"`;
+                
+                console.log('Queue data received:', JSON.stringify(queueData));
+                
+                // Add burst parameters if provided
+                if (queueData.burstUpload && queueData.burstDownload) {
+                    console.log('Adding burst-limit:', queueData.burstUpload, '/', queueData.burstDownload);
+                    createCommand += ` burst-limit="${queueData.burstUpload}/${queueData.burstDownload}"`;
+                }
+                if (queueData.burstThresholdUpload && queueData.burstThresholdDownload) {
+                    console.log('Adding burst-threshold:', queueData.burstThresholdUpload, '/', queueData.burstThresholdDownload);
+                    createCommand += ` burst-threshold="${queueData.burstThresholdUpload}/${queueData.burstThresholdDownload}"`;
+                }
+                if (queueData.burstTimeUpload && queueData.burstTimeDownload) {
+                    console.log('Adding burst-time:', queueData.burstTimeUpload, '/', queueData.burstTimeDownload);
+                    createCommand += ` burst-time="${queueData.burstTimeUpload}/${queueData.burstTimeDownload}"`;
+                }
+                
+                createCommand += ` comment="${queueData.comment || 'ADDED-THROUGH-GUARDIAN.RELAY -- '}"`;
                 const combinedCommand = `${removeCommand}; ${createCommand}`;
                 
                 console.log('Updating queue via remove-and-recreate with command:', combinedCommand);
@@ -782,7 +814,7 @@ router.post('/queue-modify', async (req, res) => {
                 host: routerConfig.ip,
                 username: routerConfig.username,
                 password: routerConfig.password,
-                port: 22,
+                port: parseInt(routerConfig.sshPort || '22'),
                 readyTimeout: 10000
             });
             
@@ -856,7 +888,7 @@ router.post('/queue-modify', async (req, res) => {
                     host: routerConfig.ip,
                     username: routerConfig.username,
                     password: routerConfig.password,
-                    port: 22,
+                    port: parseInt(routerConfig.sshPort || '22'),
                     readyTimeout: 10000
                 });
                 
@@ -880,7 +912,7 @@ router.post('/traffic-data', async (req, res) => {
             host: routerConfig.ip,
             user: routerConfig.username,
             password: routerConfig.password,
-            port: 8728,
+            port: parseInt(routerConfig.apiPort || '8728'),
             timeout: 5000
         });
         

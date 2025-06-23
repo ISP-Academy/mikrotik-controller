@@ -43,7 +43,7 @@ document.getElementById('autoRefreshToggle').addEventListener('change', toggleAu
 document.getElementById('recentSelect').addEventListener('change', selectRecentRouter);
 
 // Clear data when router credentials change
-['routerIP', 'username', 'password'].forEach(id => {
+['routerIP', 'username', 'password', 'sshPort', 'apiPort'].forEach(id => {
     document.getElementById(id).addEventListener('input', function() {
         // Only clear if we're currently connected to a router
         if (currentRouter && currentRouter.ip) {
@@ -51,13 +51,17 @@ document.getElementById('recentSelect').addEventListener('change', selectRecentR
             const newIP = document.getElementById('routerIP').value.trim();
             const newUsername = document.getElementById('username').value.trim();
             const newPassword = document.getElementById('password').value.trim();
+            const newSSHPort = document.getElementById('sshPort').value.trim() || '22';
+            const newAPIPort = document.getElementById('apiPort').value.trim() || '8728';
             
             if (newIP !== currentRouter.ip || 
                 newUsername !== currentRouter.username || 
-                newPassword !== currentRouter.password) {
+                newPassword !== currentRouter.password ||
+                newSSHPort !== currentRouter.sshPort ||
+                newAPIPort !== currentRouter.apiPort) {
                 clearAllRouterData();
                 currentRouter = null;
-                showStatus('Router credentials changed - please connect again', 'info');
+                showStatus('Router connection details changed - please connect again', 'info');
             }
         }
     });
@@ -76,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Add Enter key support for router connection fields
-    ['routerIP', 'username', 'password'].forEach(id => {
+    ['routerIP', 'username', 'password', 'sshPort', 'apiPort'].forEach(id => {
         const input = document.getElementById(id);
         if (input) {
             input.addEventListener('keydown', function(event) {
@@ -164,7 +168,7 @@ function loadRecentRouters() {
     const recentRoutersDiv = document.getElementById('recentRouters');
     
     // Clear existing options except the first one
-    recentSelect.innerHTML = '<option value="">Select a recent router...</option>';
+    recentSelect.innerHTML = '<option value="">Select a recent device...</option>';
     
     if (recentRouters.length > 0) {
         recentRouters.forEach(router => {
@@ -184,14 +188,20 @@ function getRecentRouters() {
     return stored ? JSON.parse(stored) : [];
 }
 
-function addRecentRouter(ip, name) {
+function addRecentRouter(ip, name, sshPort = '22', apiPort = '8728') {
     let recentRouters = getRecentRouters();
     
     // Remove if already exists
     recentRouters = recentRouters.filter(router => router.ip !== ip);
     
     // Add to beginning
-    recentRouters.unshift({ ip, name, lastUsed: new Date().toISOString() });
+    recentRouters.unshift({ 
+        ip, 
+        name, 
+        sshPort, 
+        apiPort, 
+        lastUsed: new Date().toISOString() 
+    });
     
     // Keep only the last 5
     recentRouters = recentRouters.slice(0, MAX_RECENT_ROUTERS);
@@ -206,10 +216,24 @@ function addRecentRouter(ip, name) {
 function selectRecentRouter() {
     const selectedIP = document.getElementById('recentSelect').value;
     if (selectedIP) {
+        const recentRouters = getRecentRouters();
+        const selectedRouter = recentRouters.find(router => router.ip === selectedIP);
+        
         document.getElementById('routerIP').value = selectedIP;
         // Clear username and password for security
         document.getElementById('username').value = '';
         document.getElementById('password').value = '';
+        
+        // Set port values from stored router data
+        if (selectedRouter) {
+            document.getElementById('sshPort').value = selectedRouter.sshPort || '22';
+            document.getElementById('apiPort').value = selectedRouter.apiPort || '8728';
+        } else {
+            // Default values if not found
+            document.getElementById('sshPort').value = '22';
+            document.getElementById('apiPort').value = '8728';
+        }
+        
         // Focus on username field
         document.getElementById('username').focus();
     }
@@ -219,6 +243,8 @@ async function connectToRouter() {
     const ip = document.getElementById('routerIP').value.trim();
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value.trim();
+    const sshPort = document.getElementById('sshPort').value.trim() || '22';
+    const apiPort = document.getElementById('apiPort').value.trim() || '8728';
     
     if (!ip || !username || !password) {
         showStatus('Please fill in all fields', 'error');
@@ -236,13 +262,13 @@ async function connectToRouter() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ ip, username, password })
+            body: JSON.stringify({ ip, username, password, sshPort, apiPort })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            currentRouter = { ip, username, password };
+            currentRouter = { ip, username, password, sshPort, apiPort };
             showStatus(`Connected to ${ip} successfully`, 'success');
             document.getElementById('systemInfoTile').style.display = 'block';
             document.getElementById('deviceTypeSection').style.display = 'block';
@@ -257,7 +283,7 @@ async function connectToRouter() {
                 
                 // Add to recent routers with device name
                 const deviceName = result.systemInfo.identity?.name || ip;
-                addRecentRouter(ip, deviceName);
+                addRecentRouter(ip, deviceName, sshPort, apiPort);
             }
             
             // Start auto-refresh for system info if enabled
@@ -456,6 +482,16 @@ function displayResults(type, data) {
             resultsTitle.textContent = 'IP Addresses';
             resultsContent.innerHTML = createIpAddressesTable(data);
             break;
+        case 'routes':
+            resultsTitle.textContent = 'Routing Table';
+            resultsContent.innerHTML = createRoutesTable(data);
+            break;
+        case 'vlans':
+            resultsTitle.textContent = 'VLAN Viewer';
+            resultsContent.innerHTML = createVlansTable(data);
+            // Close VLAN configurator if open
+            document.getElementById('vlanPanel').style.display = 'none';
+            break;
         default:
             resultsTitle.textContent = 'Results';
             resultsContent.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
@@ -543,6 +579,93 @@ function createIpAddressesTable(addresses) {
     return html;
 }
 
+function createRoutesTable(routes) {
+    // Store routes data for sorting
+    window.currentRoutesData = routes;
+    
+    let html = `<div class="table-container">`;
+    html += `<table class="results-table routes-sortable"><thead>`;
+    
+    // Header row with sort toggles
+    html += '<tr>';
+    html += '<th onclick="sortRoutesTable(0)" style="cursor: pointer;">Destination <span class="sort-arrow" data-column="0">▼</span></th>';
+    html += '<th onclick="sortRoutesTable(1)" style="cursor: pointer;">Gateway <span class="sort-arrow" data-column="1">▼</span></th>';
+    html += '<th onclick="sortRoutesTable(2)" style="cursor: pointer;">Distance <span class="sort-arrow" data-column="2">▼</span></th>';
+    html += '<th>Interface</th><th>Status</th><th>Comment</th>';
+    html += '</tr>';
+    
+    html += '</thead><tbody>';
+    
+    routes.forEach(route => {
+        // Determine if route is active
+        const isActive = route.active === 'true';
+        const isDisabled = route.disabled === 'true';
+        const isDynamic = route.dynamic === 'true';
+        
+        let status = 'inactive';
+        let statusClass = 'status-disabled';
+        
+        if (!isDisabled && isActive) {
+            status = 'active';
+            statusClass = 'status-enabled';
+        } else if (!isDisabled && !isActive) {
+            status = 'inactive';
+            statusClass = 'status-waiting';
+        } else if (isDisabled) {
+            status = 'disabled';
+            statusClass = 'status-disabled';
+        }
+        
+        const dynamicIndicator = isDynamic ? '<span class="dynamic-indicator">D</span>' : '';
+        
+        html += '<tr>';
+        html += `<td><span class="ip-address">${route['dst-address'] || '-'}</span>${dynamicIndicator}</td>`;
+        html += `<td><span class="ip-address">${route.gateway || '-'}</span></td>`;
+        html += `<td>${route.distance || '-'}</td>`;
+        html += `<td><span class="interface-name">${route['gateway-status'] ? route['gateway-status'].split(' ')[0] : '-'}</span></td>`;
+        html += `<td><span class="status-badge ${statusClass}">${status}</span></td>`;
+        html += `<td class="comment-cell">${route.comment || ''}</td>`;
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    return html;
+}
+
+function createVlansTable(vlans) {
+    // Store vlans data for sorting
+    window.currentVlansData = vlans;
+    
+    let html = '<div class="table-container">';
+    html += '<table class="results-table vlans-sortable"><thead><tr>';
+    html += '<th onclick="sortVlansTable(0)" style="cursor: pointer;">VLAN ID <span class="sort-arrow" data-column="0">▼</span></th>';
+    html += '<th>Bridge</th><th>Tagged Ports</th><th>Untagged Ports</th><th>Status</th><th>Comment</th><th style="width: 80px;">Actions</th>';
+    html += '</tr></thead><tbody>';
+    
+    vlans.forEach(vlan => {
+        const status = vlan.disabled === 'true' ? 'disabled' : 'enabled';
+        const statusClass = status === 'enabled' ? 'status-enabled' : 'status-disabled';
+        
+        // Check if VLAN is dynamic
+        const isDynamic = vlan.dynamic === 'true';
+        const dynamicIndicator = isDynamic ? '<span class="dynamic-indicator">D</span>' : '';
+        
+        
+        html += '<tr>';
+        html += `<td><span class="vlan-id">${vlan['vlan-id'] || vlan['vlan-ids'] || '-'}</span>${dynamicIndicator}</td>`;
+        html += `<td><span class="interface-name">${vlan.bridge || '-'}</span></td>`;
+        html += `<td><span class="port-list">${vlan.tagged || '-'}</span></td>`;
+        html += `<td><span class="port-list">${vlan.untagged || '-'}</span></td>`;
+        html += `<td><span class="status-badge ${statusClass}">${status}</span></td>`;
+        html += `<td class="comment-cell">${vlan.comment || ''}</td>`;
+        html += `<td><button class="remove-vlan-btn" onclick="removeVlan('${vlan['.id']}', '${vlan['vlan-id'] || vlan['vlan-ids'] || 'Unknown'}', '${vlan.bridge || 'Unknown'}')">Remove</button></td>`;
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    return html;
+}
+
 function clearResults() {
     document.getElementById('resultsDisplay').style.display = 'none';
 }
@@ -626,6 +749,30 @@ async function refreshSystemInfo() {
                 refreshIndicator.classList.remove('visible');
             }, 1000);
         }
+    }
+}
+
+async function manualRefreshSystemInfo() {
+    if (!currentRouter) {
+        showOutput('Error: Not connected to any router');
+        return;
+    }
+    
+    // Disable the button during refresh
+    const refreshBtn = document.getElementById('manualRefreshBtn');
+    const originalText = refreshBtn.innerHTML;
+    refreshBtn.disabled = true;
+    refreshBtn.innerHTML = '🔄 Refreshing...';
+    
+    try {
+        await refreshSystemInfo();
+        showOutput('System information refreshed manually');
+    } catch (error) {
+        showOutput(`Manual refresh failed: ${error.message}`);
+    } finally {
+        // Re-enable the button
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = originalText;
     }
 }
 
@@ -1180,7 +1327,7 @@ function displaySearchResults(data) {
             html += `<td>${queue.name || '-'}</td>`;
             html += `<td><span class="ip-address">${queue.target || '-'}</span></td>`;
             html += `<td>${formatMaxLimit(queue['max-limit'])}</td>`;
-            html += `<td><button class="queue-btn" onclick="selectExistingQueue('${queue['.id']}', '${queue.target}', '${queue['max-limit'] || ''}', '${queue.name || ''}', '${queue.comment || ''}')">Edit</button></td>`;
+            html += `<td><button class="queue-btn" onclick="selectExistingQueue('${queue['.id']}', '${queue.target}', '${queue['max-limit'] || ''}', '${queue.name || ''}', '${queue.comment || ''}', '${queue['burst-limit'] || ''}', '${queue['burst-threshold'] || ''}', '${queue['burst-time'] || ''}')">Edit</button></td>`;
             html += '</tr>';
         });
         html += '</tbody></table>';
@@ -1205,11 +1352,16 @@ function selectTarget(ipAddress, description) {
     showOutput(`Selected target: ${description} (${ipAddress})`);
 }
 
-function selectExistingQueue(queueId, target, maxLimit, name, comment) {
+function selectExistingQueue(queueId, target, maxLimit, name, comment, burstLimit = '', burstThreshold = '', burstTime = '') {
     // Parse max-limit (format: upload/download)
     const limits = maxLimit.split('/');
     const upload = limits[0] || '';
     const download = limits[1] || '';
+    
+    // Parse burst parameters
+    const burstLimits = burstLimit ? burstLimit.split('/') : ['', ''];
+    const burstThresholds = burstThreshold ? burstThreshold.split('/') : ['', ''];
+    const burstTimes = burstTime ? burstTime.split('/') : ['', ''];
     
     // Convert from bits to Mbps if needed
     function convertToMbps(value) {
@@ -1227,6 +1379,12 @@ function selectExistingQueue(queueId, target, maxLimit, name, comment) {
         return numericValue;
     }
     
+    // Convert time values (remove 's' suffix)
+    function convertTime(value) {
+        if (!value) return '';
+        return value.replace(/s$/i, '');
+    }
+    
     const uploadMbps = convertToMbps(upload);
     const downloadMbps = convertToMbps(download);
     
@@ -1237,15 +1395,16 @@ function selectExistingQueue(queueId, target, maxLimit, name, comment) {
         isNew: false,
         currentUpload: uploadMbps,
         currentDownload: downloadMbps,
-        currentComment: comment || ''
+        currentComment: comment || '',
+        currentBurstUpload: convertToMbps(burstLimits[0]),
+        currentBurstDownload: convertToMbps(burstLimits[1]),
+        currentBurstThresholdUpload: convertToMbps(burstThresholds[0]),
+        currentBurstThresholdDownload: convertToMbps(burstThresholds[1]),
+        currentBurstTimeUpload: convertTime(burstTimes[0]),
+        currentBurstTimeDownload: convertTime(burstTimes[1])
     };
     
     showQueueModifySection();
-    
-    // Pre-fill the form with converted values
-    document.getElementById('maxUpload').value = uploadMbps;
-    document.getElementById('maxDownload').value = downloadMbps;
-    document.getElementById('queueComment').value = comment || '';
     
     showOutput(`Selected existing queue: ${name} (${target}) - Current: ${upload}/${download} (${uploadMbps}M/${downloadMbps}M)`);
 }
@@ -1262,8 +1421,32 @@ function showQueueModifySection() {
         document.getElementById('maxUpload').value = '100';
         document.getElementById('maxDownload').value = '100';
         document.getElementById('queueComment').value = 'ADDED-THROUGH-GUARDIAN.RELAY -- ';
+        // Clear burst fields for new queues
+        document.getElementById('burstUpload').value = '';
+        document.getElementById('burstDownload').value = '';
+        document.getElementById('burstThresholdUpload').value = '';
+        document.getElementById('burstThresholdDownload').value = '';
+        document.getElementById('burstTimeUpload').value = '';
+        document.getElementById('burstTimeDownload').value = '';
     } else {
         header.textContent = `Modify Queue for ${selectedTarget.description}`;
+        // Preserve existing values for editing
+        if (selectedTarget.currentUpload) {
+            document.getElementById('maxUpload').value = selectedTarget.currentUpload;
+        }
+        if (selectedTarget.currentDownload) {
+            document.getElementById('maxDownload').value = selectedTarget.currentDownload;
+        }
+        if (selectedTarget.currentComment !== undefined) {
+            document.getElementById('queueComment').value = selectedTarget.currentComment;
+        }
+        // Populate burst fields
+        document.getElementById('burstUpload').value = selectedTarget.currentBurstUpload || '';
+        document.getElementById('burstDownload').value = selectedTarget.currentBurstDownload || '';
+        document.getElementById('burstThresholdUpload').value = selectedTarget.currentBurstThresholdUpload || '';
+        document.getElementById('burstThresholdDownload').value = selectedTarget.currentBurstThresholdDownload || '';
+        document.getElementById('burstTimeUpload').value = selectedTarget.currentBurstTimeUpload || '';
+        document.getElementById('burstTimeDownload').value = selectedTarget.currentBurstTimeDownload || '';
     }
 }
 
@@ -1277,6 +1460,14 @@ async function updateQueueSpeeds() {
     let maxDownload = document.getElementById('maxDownload').value.trim();
     let comment = document.getElementById('queueComment').value.trim();
     
+    // Get burst configuration values
+    let burstUpload = document.getElementById('burstUpload').value.trim();
+    let burstDownload = document.getElementById('burstDownload').value.trim();
+    let burstThresholdUpload = document.getElementById('burstThresholdUpload').value.trim();
+    let burstThresholdDownload = document.getElementById('burstThresholdDownload').value.trim();
+    let burstTimeUpload = document.getElementById('burstTimeUpload').value.trim();
+    let burstTimeDownload = document.getElementById('burstTimeDownload').value.trim();
+    
     if (!maxUpload || !maxDownload) {
         showOutput('Please enter both upload and download speeds');
         return;
@@ -1284,6 +1475,7 @@ async function updateQueueSpeeds() {
     
     // Helper function to append 'M' to numeric values
     function formatSpeed(speed) {
+        if (!speed) return '';
         // If it's purely numeric (integer or decimal), append 'M'
         if (/^\d+(\.\d+)?$/.test(speed)) {
             return speed + 'M';
@@ -1292,9 +1484,32 @@ async function updateQueueSpeeds() {
         return speed;
     }
     
+    // Helper function to format time values
+    function formatTime(time) {
+        if (!time) return '';
+        // Just return the numeric value (no 's' suffix needed)
+        if (/^\d+(\.\d+)?$/.test(time)) {
+            return time;
+        }
+        // Remove 's' suffix if present
+        return time.replace(/s$/i, '');
+    }
+    
     // Process the speed values
     maxUpload = formatSpeed(maxUpload);
     maxDownload = formatSpeed(maxDownload);
+    
+    // Process burst values (only if provided)
+    if (burstUpload) burstUpload = formatSpeed(burstUpload);
+    if (burstDownload) burstDownload = formatSpeed(burstDownload);
+    if (burstThresholdUpload) burstThresholdUpload = formatSpeed(burstThresholdUpload);
+    if (burstThresholdDownload) burstThresholdDownload = formatSpeed(burstThresholdDownload);
+    if (burstTimeUpload) burstTimeUpload = formatTime(burstTimeUpload);
+    if (burstTimeDownload) burstTimeDownload = formatTime(burstTimeDownload);
+    
+    console.log('Burst values before sending:', {
+        burstUpload, burstDownload, burstThresholdUpload, burstThresholdDownload, burstTimeUpload, burstTimeDownload
+    });
     
     showOutput(`${selectedTarget.isNew ? 'Creating' : 'Updating'} CAKE queue for ${selectedTarget.ip}...`);
     
@@ -1313,6 +1528,12 @@ async function updateQueueSpeeds() {
                     name: `CAKE-${selectedTarget.ip}`,
                     maxUpload: maxUpload,
                     maxDownload: maxDownload,
+                    burstUpload: burstUpload,
+                    burstDownload: burstDownload,
+                    burstThresholdUpload: burstThresholdUpload,
+                    burstThresholdDownload: burstThresholdDownload,
+                    burstTimeUpload: burstTimeUpload,
+                    burstTimeDownload: burstTimeDownload,
                     comment: comment || 'ADDED-THROUGH-GUARDIAN.RELAY -- '
                 }
             })
@@ -1439,10 +1660,15 @@ function setupRebootOptionListeners() {
     radioButtons.forEach(radio => {
         radio.addEventListener('change', function() {
             const scheduleSection = document.getElementById('scheduleSection');
+            const routerTimeInfo = document.getElementById('routerTimeInfo');
+            
             if (this.value === 'scheduled') {
                 scheduleSection.style.display = 'block';
+                routerTimeInfo.style.display = 'block';
+                fetchRouterTime();
             } else {
                 scheduleSection.style.display = 'none';
+                routerTimeInfo.style.display = 'none';
             }
             updateConfirmButton();
         });
@@ -1560,6 +1786,61 @@ async function scheduleReboot(date, time, context) {
         }
     } catch (error) {
         showOutput(`Error scheduling reboot: ${error.message}`);
+    }
+}
+
+async function fetchRouterTime() {
+    if (!currentRouter) {
+        document.getElementById('routerCurrentTime').innerHTML = 'Error: Not connected to device';
+        return;
+    }
+    
+    // Show loading state
+    document.getElementById('routerCurrentTime').innerHTML = 'Loading device time...';
+    
+    try {
+        const response = await fetch('/api/data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                router: currentRouter,
+                type: 'system-clock'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.data && result.data.length > 0) {
+            const clockData = result.data[0];
+            
+            // Format the time display
+            let timeDisplay = '';
+            
+            if (clockData.time) {
+                timeDisplay += `<strong>Current Time:</strong> ${clockData.time}<br>`;
+            }
+            if (clockData.date) {
+                timeDisplay += `<strong>Current Date:</strong> ${clockData.date}<br>`;
+            }
+            if (clockData['time-zone-name']) {
+                timeDisplay += `<strong>Time Zone:</strong> ${clockData['time-zone-name']}`;
+            } else if (clockData['time-zone-autodetect'] === 'true') {
+                timeDisplay += `<strong>Time Zone:</strong> Auto-detected`;
+            }
+            
+            if (!timeDisplay) {
+                timeDisplay = `<strong>Device Time:</strong> ${clockData.time || 'Unknown'}<br>`;
+                timeDisplay += `<strong>Date:</strong> ${clockData.date || 'Unknown'}`;
+            }
+            
+            document.getElementById('routerCurrentTime').innerHTML = timeDisplay;
+        } else {
+            document.getElementById('routerCurrentTime').innerHTML = 'Unable to retrieve device time';
+        }
+    } catch (error) {
+        document.getElementById('routerCurrentTime').innerHTML = `Error fetching device time: ${error.message}`;
     }
 }
 
@@ -2014,4 +2295,1049 @@ function backToDeviceSelection() {
     
     // Clear current device type
     window.currentDeviceType = null;
+}
+
+// Table sorting functions
+let sortDirections = {0: null, 1: null, 2: null};
+let vlanSortDirections = {0: null};
+
+function sortRoutesTable(columnIndex) {
+    if (!window.currentRoutesData) return;
+    
+    // Toggle sort direction (null -> asc -> desc -> asc...)
+    if (sortDirections[columnIndex] === null || sortDirections[columnIndex] === 'desc') {
+        sortDirections[columnIndex] = 'asc';
+    } else {
+        sortDirections[columnIndex] = 'desc';
+    }
+    
+    // Sort the data
+    const sortedRoutes = [...window.currentRoutesData].sort((a, b) => {
+        let aValue, bValue;
+        
+        switch(columnIndex) {
+            case 0: // Destination
+                aValue = a['dst-address'] || '';
+                bValue = b['dst-address'] || '';
+                break;
+            case 1: // Gateway
+                aValue = a.gateway || '';
+                bValue = b.gateway || '';
+                break;
+            case 2: // Distance
+                aValue = parseInt(a.distance) || 0;
+                bValue = parseInt(b.distance) || 0;
+                return sortDirections[columnIndex] === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        
+        // For string comparisons (destination and gateway)
+        if (columnIndex !== 2) {
+            // Check if both are IP addresses
+            const aIsIP = isIPAddress(aValue);
+            const bIsIP = isIPAddress(bValue);
+            
+            if (aIsIP && bIsIP) {
+                return compareIPAddresses(aValue, bValue, sortDirections[columnIndex]);
+            }
+            
+            // Handle mixed IP/non-IP values
+            if (aIsIP && !bIsIP) {
+                // IPs come before non-IPs in ascending, after in descending
+                return sortDirections[columnIndex] === 'asc' ? -1 : 1;
+            }
+            if (!aIsIP && bIsIP) {
+                // Non-IPs come after IPs in ascending, before in descending
+                return sortDirections[columnIndex] === 'asc' ? 1 : -1;
+            }
+            
+            // Both are non-IP values, use regular string comparison
+            if (sortDirections[columnIndex] === 'asc') {
+                return aValue.localeCompare(bValue);
+            } else {
+                return bValue.localeCompare(aValue);
+            }
+        }
+    });
+    
+    // Update the table
+    const resultsContent = document.getElementById('resultsContent');
+    resultsContent.innerHTML = createRoutesTable(sortedRoutes);
+    
+    // Update arrow indicators
+    updateSortArrows(columnIndex, sortDirections[columnIndex]);
+}
+
+function isIPAddress(str) {
+    const parts = str.split('/')[0].split('.');
+    return parts.length === 4 && parts.every(part => {
+        const num = parseInt(part);
+        return !isNaN(num) && num >= 0 && num <= 255;
+    });
+}
+
+function ipToNumber(ipStr) {
+    // Extract just the IP part (ignore subnet mask)
+    const [ip] = ipStr.split('/');
+    const parts = ip.split('.');
+    
+    // Convert IP to number using proper 32-bit unsigned calculation
+    const num = (parseInt(parts[0]) * 256 * 256 * 256) + 
+                (parseInt(parts[1]) * 256 * 256) + 
+                (parseInt(parts[2]) * 256) + 
+                parseInt(parts[3]);
+    
+    // Debug log
+    console.log(`IP: ${ipStr} -> Number: ${num}`);
+    
+    return num;
+}
+
+function compareIPAddresses(a, b, direction) {
+    const aNum = ipToNumber(a);
+    const bNum = ipToNumber(b);
+    
+    console.log(`Comparing ${a} (${aNum}) vs ${b} (${bNum}) - Direction: ${direction}`);
+    
+    // Simple numerical comparison
+    // asc (▲) = smallest to largest (0.0.0.0 first)
+    // desc (▼) = largest to smallest (255.255.255.255 first)
+    return direction === 'asc' 
+        ? aNum - bNum  // 0.0.0.0 first
+        : bNum - aNum; // 255.255.255.255 first
+}
+
+function updateSortArrows(activeColumn, direction) {
+    // Reset all arrows
+    document.querySelectorAll('.sort-arrow').forEach(arrow => {
+        arrow.textContent = '▼';
+        arrow.style.color = '#999';
+    });
+    
+    // Update active column arrow
+    const activeArrow = document.querySelector(`.sort-arrow[data-column="${activeColumn}"]`);
+    if (activeArrow) {
+        activeArrow.textContent = direction === 'asc' ? '▲' : '▼';
+        activeArrow.style.color = '#3498db';
+    }
+}
+
+// VLAN table sorting functions
+function sortVlansTable(columnIndex) {
+    if (!window.currentVlansData) return;
+    
+    // Toggle sort direction (null -> asc -> desc -> asc...)
+    if (vlanSortDirections[columnIndex] === null || vlanSortDirections[columnIndex] === 'desc') {
+        vlanSortDirections[columnIndex] = 'asc';
+    } else {
+        vlanSortDirections[columnIndex] = 'desc';
+    }
+    
+    // Sort the data
+    const sortedVlans = [...window.currentVlansData].sort((a, b) => {
+        if (columnIndex === 0) { // VLAN ID column
+            return compareVlanIds(a, b, vlanSortDirections[columnIndex]);
+        }
+        return 0;
+    });
+    
+    // Update the table
+    const resultsContent = document.getElementById('resultsContent');
+    resultsContent.innerHTML = createVlansTable(sortedVlans);
+    
+    // Update arrow indicators
+    updateVlanSortArrows(columnIndex, vlanSortDirections[columnIndex]);
+}
+
+function compareVlanIds(a, b, direction) {
+    const vlanIdA = a['vlan-id'] || a['vlan-ids'] || '';
+    const vlanIdB = b['vlan-id'] || b['vlan-ids'] || '';
+    
+    // Handle empty values
+    if (!vlanIdA && !vlanIdB) return 0;
+    if (!vlanIdA) return direction === 'asc' ? 1 : -1;
+    if (!vlanIdB) return direction === 'asc' ? -1 : 1;
+    
+    // Try to parse as numbers first
+    const numA = parseInt(vlanIdA);
+    const numB = parseInt(vlanIdB);
+    
+    // If both are valid numbers, compare numerically
+    if (!isNaN(numA) && !isNaN(numB)) {
+        const result = numA - numB;
+        return direction === 'asc' ? result : -result;
+    }
+    
+    // Otherwise, compare as strings
+    const result = vlanIdA.localeCompare(vlanIdB);
+    return direction === 'asc' ? result : -result;
+}
+
+function updateVlanSortArrows(activeColumn, direction) {
+    // Reset all VLAN arrows
+    document.querySelectorAll('.vlans-sortable .sort-arrow').forEach(arrow => {
+        arrow.textContent = '▼';
+        arrow.style.color = '#999';
+    });
+    
+    // Update active column arrow
+    const activeArrow = document.querySelector(`.vlans-sortable .sort-arrow[data-column="${activeColumn}"]`);
+    if (activeArrow) {
+        activeArrow.textContent = direction === 'asc' ? '▲' : '▼';
+        activeArrow.style.color = '#3498db';
+    }
+}
+
+// VLAN Configurator Functions
+async function openVlanConfigurator() {
+    if (!currentRouter) {
+        showOutput('Error: Not connected to any device');
+        return;
+    }
+    
+    // Close VLAN viewer if open
+    document.getElementById('resultsDisplay').style.display = 'none';
+    
+    // Show the panel
+    document.getElementById('vlanPanel').style.display = 'block';
+    
+    // Clear previous values
+    document.getElementById('vlanId').value = '';
+    document.getElementById('vlanComment').value = '';
+    
+    // Load bridges and interfaces
+    await Promise.all([
+        loadBridgesForVlan(),
+        loadInterfacesForVlan()
+    ]);
+}
+
+function closeVlanPanel() {
+    document.getElementById('vlanPanel').style.display = 'none';
+}
+
+async function loadBridgesForVlan() {
+    const bridgeSelect = document.getElementById('vlanBridge');
+    bridgeSelect.innerHTML = '<option value="">Loading bridges...</option>';
+    
+    try {
+        const response = await fetch('/api/data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                router: currentRouter,
+                type: 'interfaces'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            // Filter for bridge interfaces
+            const bridges = result.data.filter(iface => {
+                const type = iface.type || '';
+                return type.includes('bridge');
+            });
+            
+            bridgeSelect.innerHTML = '<option value="">Select a bridge...</option>';
+            
+            bridges.forEach(bridge => {
+                const option = document.createElement('option');
+                option.value = bridge.name;
+                option.textContent = bridge.name;
+                bridgeSelect.appendChild(option);
+            });
+            
+            // Auto-select if only one bridge
+            if (bridges.length === 1) {
+                bridgeSelect.value = bridges[0].name;
+            }
+            
+            if (bridges.length === 0) {
+                bridgeSelect.innerHTML = '<option value="">No bridges found</option>';
+            }
+        } else {
+            bridgeSelect.innerHTML = '<option value="">Error loading bridges</option>';
+        }
+    } catch (error) {
+        bridgeSelect.innerHTML = '<option value="">Error loading bridges</option>';
+        console.error('Error loading bridges:', error);
+    }
+}
+
+async function loadInterfacesForVlan() {
+    const interfacesList = document.getElementById('vlanInterfacesList');
+    interfacesList.innerHTML = '<p>Loading interfaces...</p>';
+    
+    try {
+        // Fetch both interfaces and VLANs data
+        const [interfacesResponse, vlansResponse, bridgePortsResponse] = await Promise.all([
+            fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    type: 'interfaces'
+                })
+            }),
+            fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    type: 'vlans'
+                })
+            }),
+            fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    type: 'bridge-ports'
+                })
+            })
+        ]);
+        
+        const interfacesResult = await interfacesResponse.json();
+        const vlansResult = await vlansResponse.json();
+        const bridgePortsResult = await bridgePortsResponse.json();
+        
+        if (interfacesResult.success && interfacesResult.data) {
+            const vlansData = vlansResult.success ? vlansResult.data : [];
+            const bridgePortsData = bridgePortsResult.success ? bridgePortsResult.data : [];
+            displayInterfacesForVlan(interfacesResult.data, vlansData, bridgePortsData);
+        } else {
+            interfacesList.innerHTML = '<p>Error loading interfaces: ' + (interfacesResult.error || 'Unknown error') + '</p>';
+        }
+    } catch (error) {
+        interfacesList.innerHTML = '<p>Error loading interfaces: ' + error.message + '</p>';
+    }
+}
+
+function displayInterfacesForVlan(interfaces, vlansData = [], bridgePortsData = []) {
+    const interfacesList = document.getElementById('vlanInterfacesList');
+    
+    // Create a map of interface to VLANs for quick lookup
+    const interfaceVlans = {};
+    
+    // Create a map of interface to PVID for quick lookup
+    const interfacePvids = {};
+    bridgePortsData.forEach(port => {
+        if (port.interface) {
+            interfacePvids[port.interface] = port.pvid || '1';
+        }
+    });
+    
+    vlansData.forEach(vlan => {
+        const vlanId = vlan['vlan-id'] || vlan['vlan-ids'] || '';
+        
+        
+        // Process tagged ports
+        if (vlan.tagged) {
+            const taggedPorts = vlan.tagged.split(',').map(port => port.trim());
+            taggedPorts.forEach(port => {
+                if (!interfaceVlans[port]) interfaceVlans[port] = [];
+                interfaceVlans[port].push({
+                    id: vlanId,
+                    type: 'tagged'
+                });
+            });
+        }
+        
+        // Process untagged ports
+        if (vlan.untagged) {
+            const untaggedPorts = vlan.untagged.split(',').map(port => port.trim());
+            untaggedPorts.forEach(port => {
+                if (!interfaceVlans[port]) interfaceVlans[port] = [];
+                interfaceVlans[port].push({
+                    id: vlanId,
+                    type: 'untagged'
+                });
+            });
+        }
+    });
+    
+    // Filter out virtual and non-physical interfaces, excluding VLAN interfaces
+    const physicalInterfaces = interfaces.filter(iface => {
+        const type = iface.type || '';
+        // Include physical ports but exclude VLAN interfaces
+        return (type.includes('ether') || type.includes('bridge') || 
+               type.includes('sfp') || type.includes('combo') || type.includes('wlan')) &&
+               !type.includes('vlan');
+    });
+    
+    if (physicalInterfaces.length === 0) {
+        interfacesList.innerHTML = '<p>No suitable interfaces found for VLAN configuration.</p>';
+        return;
+    }
+    
+    let html = '<table class="vlan-interfaces-table">';
+    html += '<thead><tr>';
+    html += '<th style="width: 40px;"><input type="checkbox" id="selectAllInterfaces" onchange="toggleAllInterfaces()"></th>';
+    html += '<th>Interface Name</th>';
+    html += '<th>Type</th>';
+    html += '<th>Status</th>';
+    html += '<th>PVID</th>';
+    html += '<th>Current VLANs</th>';
+    html += '</tr></thead><tbody>';
+    
+    physicalInterfaces.forEach(iface => {
+        const status = iface.disabled === 'true' ? 'disabled' : 'enabled';
+        const statusClass = status === 'enabled' ? 'enabled' : 'disabled';
+        
+        // Get VLANs for this interface
+        const vlansForInterface = interfaceVlans[iface.name] || [];
+        let vlanDisplay = '-';
+        
+        if (vlansForInterface.length > 0) {
+            const vlanStrings = vlansForInterface.map(vlan => {
+                const typeIndicator = vlan.type === 'tagged' ? 'T' : 'U';
+                const removeButton = `<button class="remove-vlan-tag-btn" onclick="removeVlanFromInterface('${iface.name}', '${vlan.id}', '${vlan.type}')" title="Remove VLAN ${vlan.id} from ${iface.name}">R</button>`;
+                return `${vlan.id}(${typeIndicator})${removeButton}`;
+            });
+            vlanDisplay = vlanStrings.join(' ');
+        }
+        
+        // Get PVID for this interface
+        const pvid = interfacePvids[iface.name] || '1';
+        const pvidDisplay = pvid !== '1' ? 
+            `${pvid} <button class="remove-vlan-tag-btn" onclick="removePvidFromInterface('${iface.name}')" title="Reset PVID to 1">R</button>` : 
+            pvid;
+        
+        html += '<tr>';
+        html += `<td><input type="checkbox" class="vlan-interface-checkbox" data-interface="${iface.name}" value="${iface.name}"></td>`;
+        html += `<td><span class="interface-name">${iface.name || '-'}</span></td>`;
+        html += `<td><span class="interface-type">${iface.type || '-'}</span></td>`;
+        html += `<td><span class="interface-status ${statusClass}">${status}</span></td>`;
+        html += `<td><span class="pvid-display">${pvidDisplay}</span></td>`;
+        html += `<td><span class="vlan-assignments">${vlanDisplay}</span></td>`;
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    interfacesList.innerHTML = html;
+}
+
+function toggleAllInterfaces() {
+    const selectAll = document.getElementById('selectAllInterfaces');
+    const checkboxes = document.querySelectorAll('.vlan-interface-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+function selectAllPorts() {
+    const checkboxes = document.querySelectorAll('.vlan-interface-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    document.getElementById('selectAllInterfaces').checked = true;
+}
+
+function deselectAllPorts() {
+    const checkboxes = document.querySelectorAll('.vlan-interface-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.getElementById('selectAllInterfaces').checked = false;
+}
+
+async function applyVlanToSelectedPorts() {
+    const vlanId = document.getElementById('vlanId').value.trim();
+    const vlanBridge = document.getElementById('vlanBridge').value;
+    const vlanComment = document.getElementById('vlanComment').value.trim();
+    
+    if (!vlanId) {
+        showAlert('Input Required', 'Please enter a VLAN ID');
+        return;
+    }
+    
+    const vlanIdNum = parseInt(vlanId);
+    if (isNaN(vlanIdNum) || vlanIdNum < 1 || vlanIdNum > 4094) {
+        showAlert('Invalid VLAN ID', 'VLAN ID must be between 1 and 4094');
+        return;
+    }
+    
+    if (!vlanBridge) {
+        showAlert('Bridge Required', 'Please select a bridge');
+        return;
+    }
+    
+    const selectedPorts = [];
+    const checkboxes = document.querySelectorAll('.vlan-interface-checkbox:checked');
+    checkboxes.forEach(checkbox => {
+        selectedPorts.push(checkbox.value);
+    });
+    
+    if (selectedPorts.length === 0) {
+        showAlert('Selection Required', 'Please select at least one interface');
+        return;
+    }
+    
+    // Confirm action
+    const confirmMsg = `Are you sure you want to add VLAN ${vlanId} to bridge ${vlanBridge} on the following ports?\n\n${selectedPorts.join(', ')}${vlanComment ? '\n\nComment: ' + vlanComment : ''}`;
+    
+    showConfirmation('Confirm VLAN Configuration', confirmMsg, async function() {
+        try {
+            showOutput(`Applying VLAN ${vlanId} to bridge ${vlanBridge} on ports: ${selectedPorts.join(', ')}`);
+            
+            // First, check if VLAN already exists
+            const vlansResponse = await fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    type: 'vlans'
+                })
+            });
+            
+            const vlansResult = await vlansResponse.json();
+            let existingVlan = null;
+            
+            if (vlansResult.success && vlansResult.data) {
+                existingVlan = vlansResult.data.find(vlan => {
+                    const vlanIdFromData = vlan['vlan-id'] || vlan['vlan-ids'] || '';
+                    return vlanIdFromData === vlanId && vlan.bridge === vlanBridge;
+                });
+            }
+            
+            let command;
+            
+            if (existingVlan) {
+                // VLAN exists, add new ports to existing tagged ports
+                const currentTaggedPorts = existingVlan.tagged ? existingVlan.tagged.split(',').map(p => p.trim()) : [];
+                const allTaggedPorts = [...new Set([...currentTaggedPorts, ...selectedPorts])]; // Remove duplicates
+                const taggedPortsString = allTaggedPorts.join(',');
+                
+                command = `/interface/bridge/vlan/set [find where bridge="${vlanBridge}" and vlan-ids="${vlanId}"] tagged=${taggedPortsString}`;
+                
+                // Handle comment logic for existing VLANs
+                if (vlanComment && vlanComment.trim() !== '') {
+                    // User provided a new comment - replace existing comment
+                    command += ` comment="${vlanComment}"`;
+                } else if (!vlanComment || vlanComment.trim() === '') {
+                    // No new comment provided - preserve existing comment if it exists
+                    if (existingVlan.comment && existingVlan.comment.trim() !== '') {
+                        command += ` comment="${existingVlan.comment}"`;
+                    }
+                }
+                
+                showOutput(`Adding ports to existing VLAN ${vlanId} on bridge ${vlanBridge}`);
+            } else {
+                // VLAN doesn't exist, create new one
+                const taggedPorts = selectedPorts.join(',');
+                command = `/interface/bridge/vlan/add bridge=${vlanBridge} vlan-ids=${vlanId} tagged=${taggedPorts}`;
+                
+                if (vlanComment) {
+                    command += ` comment="${vlanComment}"`;
+                }
+                
+                showOutput(`Creating new VLAN ${vlanId} on bridge ${vlanBridge}`);
+            }
+            
+            // Execute the command via SSH
+            const response = await fetch('/api/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    command: command
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                const actionType = existingVlan ? 'added to existing' : 'created and tagged on';
+                showAlert('Success', `VLAN ${vlanId} has been successfully ${actionType} bridge ${vlanBridge}!\n\nPorts: ${selectedPorts.join(', ')}`);
+                showOutput(`VLAN tagging completed successfully`);
+                
+                // Clear the form and refresh the interface list
+                document.getElementById('vlanId').value = '';
+                document.getElementById('vlanComment').value = '';
+                deselectAllPorts();
+                
+                // Refresh the interface list to show updated VLAN assignments
+                setTimeout(() => {
+                    loadInterfacesForVlan();
+                }, 1000);
+            } else {
+                showAlert('Error', `Failed to configure VLAN: ${result.error}`);
+                showOutput(`VLAN configuration failed: ${result.error}`);
+            }
+        } catch (error) {
+            showAlert('Error', `Failed to configure VLAN: ${error.message}`);
+            showOutput(`VLAN configuration error: ${error.message}`);
+        }
+    });
+}
+
+// Remove VLAN Function
+function removeVlan(vlanInternalId, vlanId, bridgeName) {
+    const confirmMsg = `Are you sure you want to remove VLAN ${vlanId} from bridge ${bridgeName}?\n\nThis action cannot be undone.`;
+    
+    showConfirmation('Confirm VLAN Removal', confirmMsg, async function() {
+        try {
+            showOutput(`Removing VLAN ${vlanId} from bridge ${bridgeName}...`);
+            
+            // Build the SSH command to remove VLAN by internal ID
+            const command = `/interface/bridge/vlan/remove numbers=${vlanInternalId}`;
+            
+            // Execute the command via SSH
+            const response = await fetch('/api/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    command: command
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('Success', `VLAN ${vlanId} has been successfully removed from bridge ${bridgeName}.`);
+                showOutput(`VLAN ${vlanId} removal completed successfully`);
+                
+                // Refresh the VLAN table to show updated data
+                setTimeout(() => {
+                    getData('vlans');
+                }, 1000);
+            } else {
+                showAlert('Error', `Failed to remove VLAN: ${result.error}`);
+                showOutput(`VLAN removal failed: ${result.error}`);
+            }
+        } catch (error) {
+            showAlert('Error', `Failed to remove VLAN: ${error.message}`);
+            showOutput(`VLAN removal error: ${error.message}`);
+        }
+    });
+}
+
+// Remove VLAN Tag from Interface Function
+function removeVlanFromInterface(interfaceName, vlanId, vlanType) {
+    const typeText = vlanType === 'tagged' ? 'tagged' : 'untagged';
+    const confirmMsg = `Are you sure you want to remove VLAN ${vlanId} (${typeText}) from interface ${interfaceName}?\n\nThis action cannot be undone.`;
+    
+    showConfirmation('Confirm VLAN Removal', confirmMsg, async function() {
+        try {
+            showOutput(`Removing VLAN ${vlanId} from ${interfaceName}...`);
+            
+            // First, get current VLAN configuration
+            const vlansResponse = await fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    type: 'vlans'
+                })
+            });
+            
+            const vlansResult = await vlansResponse.json();
+            
+            if (!vlansResult.success || !vlansResult.data) {
+                showAlert('Error', 'Failed to fetch current VLAN configuration');
+                return;
+            }
+            
+            // Find the VLAN that needs to be updated
+            const targetVlan = vlansResult.data.find(vlan => {
+                const vlanIdFromData = vlan['vlan-id'] || vlan['vlan-ids'] || '';
+                return vlanIdFromData === vlanId;
+            });
+            
+            if (!targetVlan) {
+                showAlert('Error', `VLAN ${vlanId} not found`);
+                return;
+            }
+            
+            let command;
+            
+            if (vlanType === 'tagged') {
+                // Remove from tagged ports
+                const currentTaggedPorts = targetVlan.tagged ? targetVlan.tagged.split(',').map(p => p.trim()) : [];
+                const updatedTaggedPorts = currentTaggedPorts.filter(port => port !== interfaceName);
+                
+                if (updatedTaggedPorts.length === 0 && (!targetVlan.untagged || targetVlan.untagged.trim() === '')) {
+                    // No ports left, remove entire VLAN
+                    command = `/interface/bridge/vlan/remove [find where vlan-ids="${vlanId}"]`;
+                    showOutput(`No ports remaining, removing entire VLAN ${vlanId}`);
+                } else {
+                    // Update tagged ports list
+                    const taggedPortsString = updatedTaggedPorts.join(',');
+                    command = `/interface/bridge/vlan/set [find where vlan-ids="${vlanId}"] tagged=${taggedPortsString}`;
+                }
+            } else {
+                // Remove from untagged ports
+                const currentUntaggedPorts = targetVlan.untagged ? targetVlan.untagged.split(',').map(p => p.trim()) : [];
+                const updatedUntaggedPorts = currentUntaggedPorts.filter(port => port !== interfaceName);
+                
+                if (updatedUntaggedPorts.length === 0 && (!targetVlan.tagged || targetVlan.tagged.trim() === '')) {
+                    // No ports left, remove entire VLAN
+                    command = `/interface/bridge/vlan/remove [find where vlan-ids="${vlanId}"]`;
+                    showOutput(`No ports remaining, removing entire VLAN ${vlanId}`);
+                } else {
+                    // Update untagged ports list
+                    const untaggedPortsString = updatedUntaggedPorts.join(',');
+                    command = `/interface/bridge/vlan/set [find where vlan-ids="${vlanId}"] untagged=${untaggedPortsString}`;
+                }
+            }
+            
+            // Execute the command via SSH
+            const response = await fetch('/api/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    command: command
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('Success', `VLAN ${vlanId} has been successfully removed from interface ${interfaceName}.`);
+                showOutput(`VLAN removal completed successfully`);
+                
+                // Refresh the interface list to show updated VLAN assignments
+                setTimeout(() => {
+                    loadInterfacesForVlan();
+                }, 1000);
+            } else {
+                showAlert('Error', `Failed to remove VLAN: ${result.error}`);
+                showOutput(`VLAN removal failed: ${result.error}`);
+            }
+        } catch (error) {
+            showAlert('Error', `Failed to remove VLAN: ${error.message}`);
+            showOutput(`VLAN removal error: ${error.message}`);
+        }
+    });
+}
+
+// Untag VLAN from Selected Ports Function
+async function untagVlanFromSelectedPorts() {
+    const vlanId = document.getElementById('vlanId').value.trim();
+    const vlanBridge = document.getElementById('vlanBridge').value;
+    
+    if (!vlanId) {
+        showAlert('Input Required', 'Please enter a VLAN ID');
+        return;
+    }
+    
+    const vlanIdNum = parseInt(vlanId);
+    if (isNaN(vlanIdNum) || vlanIdNum < 1 || vlanIdNum > 4094) {
+        showAlert('Invalid VLAN ID', 'VLAN ID must be between 1 and 4094');
+        return;
+    }
+    
+    if (!vlanBridge) {
+        showAlert('Bridge Required', 'Please select a bridge');
+        return;
+    }
+    
+    const selectedPorts = [];
+    const checkboxes = document.querySelectorAll('.vlan-interface-checkbox:checked');
+    checkboxes.forEach(checkbox => {
+        selectedPorts.push(checkbox.value);
+    });
+    
+    if (selectedPorts.length === 0) {
+        showAlert('Selection Required', 'Please select at least one interface');
+        return;
+    }
+    
+    // Confirm action
+    const confirmMsg = `Are you sure you want to untag VLAN ${vlanId} from bridge ${vlanBridge} on the following ports?\n\n${selectedPorts.join(', ')}`;
+    
+    showConfirmation('Confirm VLAN Untagging', confirmMsg, async function() {
+        try {
+            showOutput(`Untagging VLAN ${vlanId} from bridge ${vlanBridge} on ports: ${selectedPorts.join(', ')}`);
+            
+            // First, check if VLAN already exists
+            const vlansResponse = await fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    type: 'vlans'
+                })
+            });
+            
+            const vlansResult = await vlansResponse.json();
+            let existingVlan = null;
+            
+            if (vlansResult.success && vlansResult.data) {
+                existingVlan = vlansResult.data.find(vlan => {
+                    const vlanIdFromData = vlan['vlan-id'] || vlan['vlan-ids'] || '';
+                    return vlanIdFromData === vlanId && vlan.bridge === vlanBridge;
+                });
+            }
+            
+            let command;
+            if (existingVlan) {
+                // VLAN exists, use set command to add untagged ports to existing configuration
+                const currentUntagged = existingVlan.untagged ? existingVlan.untagged.split(',').map(p => p.trim()) : [];
+                const newUntagged = [...new Set([...currentUntagged, ...selectedPorts])];
+                command = `/interface/bridge/vlan/set [find where bridge="${vlanBridge}" and vlan-ids="${vlanId}"] untagged=${newUntagged.join(',')}`;
+            } else {
+                // VLAN doesn't exist, create new one
+                command = `/interface/bridge/vlan/add bridge=${vlanBridge} vlan-ids=${vlanId} untagged=${selectedPorts.join(',')}`;
+            }
+            
+            // Execute the command via SSH
+            const response = await fetch('/api/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    command: command
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('Success', `VLAN ${vlanId} has been successfully untagged from bridge ${vlanBridge}!\n\nPorts: ${selectedPorts.join(', ')}`);
+                showOutput(`VLAN untagging completed successfully`);
+                
+                // Clear the form and refresh the interface list
+                document.getElementById('vlanId').value = '';
+                document.getElementById('vlanComment').value = '';
+                deselectAllPorts();
+                
+                // Refresh the interface list to show updated VLAN assignments
+                setTimeout(() => {
+                    loadInterfacesForVlan();
+                }, 1000);
+            } else {
+                showAlert('Error', `Failed to untag VLAN: ${result.error}`);
+                showOutput(`VLAN untagging failed: ${result.error}`);
+            }
+        } catch (error) {
+            showAlert('Error', `Failed to untag VLAN: ${error.message}`);
+            showOutput(`VLAN untagging error: ${error.message}`);
+        }
+    });
+}
+
+// Create Access Port on Selected Ports Function
+async function createAccessPortOnSelectedPorts() {
+    const vlanId = document.getElementById('vlanId').value.trim();
+    const vlanBridge = document.getElementById('vlanBridge').value;
+    
+    if (!vlanId) {
+        showAlert('Input Required', 'Please enter a VLAN ID');
+        return;
+    }
+    
+    const vlanIdNum = parseInt(vlanId);
+    if (isNaN(vlanIdNum) || vlanIdNum < 1 || vlanIdNum > 4094) {
+        showAlert('Invalid VLAN ID', 'VLAN ID must be between 1 and 4094');
+        return;
+    }
+    
+    if (!vlanBridge) {
+        showAlert('Bridge Required', 'Please select a bridge');
+        return;
+    }
+    
+    const selectedPorts = [];
+    const checkboxes = document.querySelectorAll('.vlan-interface-checkbox:checked');
+    checkboxes.forEach(checkbox => {
+        selectedPorts.push(checkbox.value);
+    });
+    
+    if (selectedPorts.length === 0) {
+        showAlert('Selection Required', 'Please select at least one interface');
+        return;
+    }
+    
+    // Confirm action
+    const confirmMsg = `Are you sure you want to create access ports for VLAN ${vlanId} on the following interfaces?\n\n${selectedPorts.join(', ')}\n\nThis will set the PVID and untag the VLAN on these ports.`;
+    
+    showConfirmation('Confirm Access Port Creation', confirmMsg, async function() {
+        try {
+            showOutput(`Creating access ports for VLAN ${vlanId} on ports: ${selectedPorts.join(', ')}`);
+            
+            // First, check if VLAN already exists
+            const vlansResponse = await fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    type: 'vlans'
+                })
+            });
+            
+            const vlansResult = await vlansResponse.json();
+            let existingVlan = null;
+            
+            if (vlansResult.success && vlansResult.data) {
+                existingVlan = vlansResult.data.find(vlan => {
+                    const vlanIdFromData = vlan['vlan-id'] || vlan['vlan-ids'] || '';
+                    return vlanIdFromData === vlanId && vlan.bridge === vlanBridge;
+                });
+            }
+            
+            // Build commands for setting PVID and untagging VLAN
+            const commands = [];
+            
+            // Set PVID for each selected port
+            selectedPorts.forEach(port => {
+                commands.push(`/interface/bridge/port/set [find where interface="${port}"] pvid=${vlanId}`);
+            });
+            
+            // Add or update untagged VLAN configuration
+            if (existingVlan) {
+                // VLAN exists, use set command to add untagged ports to existing configuration
+                const currentUntagged = existingVlan.untagged ? existingVlan.untagged.split(',').map(p => p.trim()) : [];
+                const newUntagged = [...new Set([...currentUntagged, ...selectedPorts])];
+                commands.push(`/interface/bridge/vlan/set [find where bridge="${vlanBridge}" and vlan-ids="${vlanId}"] untagged=${newUntagged.join(',')}`);
+            } else {
+                // VLAN doesn't exist, create new one
+                commands.push(`/interface/bridge/vlan/add bridge=${vlanBridge} vlan-ids=${vlanId} untagged=${selectedPorts.join(',')}`);
+            }
+            
+            // Combine all commands
+            const combinedCommand = commands.join('; ');
+            
+            // Execute the command via SSH
+            const response = await fetch('/api/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    command: combinedCommand
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('Success', `Access ports for VLAN ${vlanId} have been successfully created!\n\nPorts: ${selectedPorts.join(', ')}\nPVID set to ${vlanId} and VLAN untagged on these ports.`);
+                showOutput(`Access port creation completed successfully`);
+                
+                // Clear the form and refresh the interface list
+                document.getElementById('vlanId').value = '';
+                document.getElementById('vlanComment').value = '';
+                deselectAllPorts();
+                
+                // Refresh the interface list to show updated VLAN assignments
+                setTimeout(() => {
+                    loadInterfacesForVlan();
+                }, 1000);
+            } else {
+                showAlert('Error', `Failed to create access ports: ${result.error}`);
+                showOutput(`Access port creation failed: ${result.error}`);
+            }
+        } catch (error) {
+            showAlert('Error', `Failed to create access ports: ${error.message}`);
+            showOutput(`Access port creation error: ${error.message}`);
+        }
+    });
+}
+
+// Remove PVID from Interface Function
+async function removePvidFromInterface(interfaceName) {
+    const confirmMsg = `Are you sure you want to reset the PVID for interface ${interfaceName} back to 1?\n\nThis will change the access VLAN for this port.`;
+    
+    showConfirmation('Confirm PVID Reset', confirmMsg, async function() {
+        try {
+            showOutput(`Resetting PVID for ${interfaceName} to 1...`);
+            
+            // Build the SSH command to reset PVID to 1
+            const command = `/interface/bridge/port/set [find where interface="${interfaceName}"] pvid=1`;
+            
+            // Execute the command via SSH
+            const response = await fetch('/api/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    router: currentRouter,
+                    command: command
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('Success', `PVID for interface ${interfaceName} has been successfully reset to 1!`);
+                showOutput(`PVID reset completed successfully`);
+                
+                // Refresh the interface list to show updated PVID
+                setTimeout(() => {
+                    loadInterfacesForVlan();
+                }, 1000);
+            } else {
+                showAlert('Error', `Failed to reset PVID: ${result.error}`);
+                showOutput(`PVID reset failed: ${result.error}`);
+            }
+        } catch (error) {
+            showAlert('Error', `Failed to reset PVID: ${error.message}`);
+            showOutput(`PVID reset error: ${error.message}`);
+        }
+    });
+}
+
+// Custom Modal Functions
+function showConfirmation(title, message, onConfirm) {
+    document.getElementById('confirmationTitle').textContent = title;
+    document.getElementById('confirmationMessage').textContent = message;
+    document.getElementById('confirmationModal').style.display = 'flex';
+    
+    // Set up the confirm button
+    const confirmBtn = document.getElementById('confirmActionBtn');
+    confirmBtn.onclick = function() {
+        closeConfirmationModal();
+        if (onConfirm) onConfirm();
+    };
+}
+
+function closeConfirmationModal() {
+    document.getElementById('confirmationModal').style.display = 'none';
+}
+
+function showAlert(title, message) {
+    document.getElementById('alertTitle').textContent = title;
+    document.getElementById('alertMessage').textContent = message;
+    document.getElementById('alertModal').style.display = 'flex';
+}
+
+function closeAlertModal() {
+    document.getElementById('alertModal').style.display = 'none';
+}
+
+function showVlanHelper() {
+    document.getElementById('vlanHelperModal').style.display = 'flex';
+}
+
+function closeVlanHelper() {
+    document.getElementById('vlanHelperModal').style.display = 'none';
 }

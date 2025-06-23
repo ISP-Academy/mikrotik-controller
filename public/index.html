@@ -4,40 +4,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guardian Relay</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="Simple_NG_Logo.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="Simple_NG_Logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="Simple_NG_Logo.png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Guardian Relay</h1>
-            <p style="margin: 0; color: #666; font-size: 12px;">Network Management System v1.1.0</p>
+            <div class="header-content">
+                <img src="WB_NG_Logo.png" alt="Network Guardian" class="header-logo">
+                <p class="version-text">Network Management System v1.1.0</p>
+            </div>
         </header>
 
         <div class="router-selection">
-            <h2>Router Selection</h2>
+            <h2>Device Selection</h2>
             <div class="recent-routers" id="recentRouters" style="display: none;">
-                <label for="recentSelect">Recent Routers:</label>
+                <label for="recentSelect">Recent Devices:</label>
                 <select id="recentSelect">
-                    <option value="">Select a recent router...</option>
+                    <option value="">Select a recent device...</option>
                 </select>
             </div>
             <div class="input-group">
-                <input type="text" id="routerIP" placeholder="Router IP Address (e.g., 192.168.1.1)" />
+                <input type="text" id="routerIP" placeholder="Device IP Address (e.g., 192.168.1.1)" />
                 <input type="text" id="username" placeholder="Username" />
                 <input type="password" id="password" placeholder="Password" />
                 <button id="connectBtn">Connect</button>
+            </div>
+            <div class="port-group">
+                <div class="port-field">
+                    <label for="sshPort">SSH Port:</label>
+                    <input type="number" id="sshPort" placeholder="22" value="22" min="1" max="65535" />
+                </div>
+                <div class="port-field">
+                    <label for="apiPort">API Port:</label>
+                    <input type="number" id="apiPort" placeholder="8728" value="8728" min="1" max="65535" />
+                </div>
             </div>
             <div id="connectionStatus" class="status"></div>
         </div>
 
         <div class="system-info-tile" id="systemInfoTile" style="display: none;">
             <div class="system-info-header">
-                <h2>Router Information</h2>
+                <h2>Device Information</h2>
                 <div class="refresh-controls">
                     <label class="refresh-toggle">
                         <input type="checkbox" id="autoRefreshToggle">
                         <span class="toggle-text">Auto-refresh</span>
                     </label>
+                    <button class="manual-refresh-btn" id="manualRefreshBtn" onclick="manualRefreshSystemInfo()">🔄 Refresh</button>
                     <div class="refresh-indicator" id="refreshIndicator">
                         <span class="refresh-icon">🔄</span>
                         <span class="refresh-text">Refreshing...</span>
@@ -92,17 +108,26 @@
                 <h2>Device Management</h2>
                 <div class="device-grid">
                     <div class="device-card" onclick="selectDeviceType('router')">
-                        <div class="device-icon">🔧</div>
+                        <div class="device-card-header">
+                            <img src="images/rb5009.png" alt="Router" class="device-icon">
+                            <img src="Simple_NG_Logo.png" alt="NG" class="device-logo">
+                        </div>
                         <h3>Routers</h3>
                         <p>Manage MikroTik routers, queues, and routing</p>
                     </div>
                     <div class="device-card" onclick="selectDeviceType('switch')">
-                        <div class="device-icon">🔌</div>
+                        <div class="device-card-header">
+                            <img src="images/crs328-24p.png" alt="Switch" class="device-icon">
+                            <img src="Simple_NG_Logo.png" alt="NG" class="device-logo">
+                        </div>
                         <h3>Switches</h3>
                         <p>Configure VLANs, ports, and switching</p>
                     </div>
                     <div class="device-card" onclick="selectDeviceType('wireless')">
-                        <div class="device-icon">📡</div>
+                        <div class="device-card-header">
+                            <img src="images/cap-ax.png" alt="Wireless AP" class="device-icon">
+                            <img src="Simple_NG_Logo.png" alt="NG" class="device-logo">
+                        </div>
                         <h3>Wireless APs</h3>
                         <p>Manage WiFi access points and wireless settings</p>
                     </div>
@@ -114,6 +139,7 @@
                 <div class="controls-header">
                     <button class="back-btn" onclick="backToDeviceSelection()">← Back</button>
                     <h2>Router Controls</h2>
+                    <img src="images/rb5009.png" alt="Router" class="controls-device-icon">
                 </div>
                 
                 <div class="button-group">
@@ -121,13 +147,12 @@
                     <button class="action-btn" onclick="getData('interfaces')">Get Interfaces</button>
                     <button class="action-btn" onclick="getData('dhcp-leases')">Get DHCP Leases</button>
                     <button class="action-btn" onclick="getData('ip-addresses')">Get IP Addresses</button>
+                    <button class="action-btn" onclick="getData('routes')">Show Routes</button>
                 </div>
 
                 <div class="button-group">
                     <h3>Commands</h3>
-                    <button class="action-btn" onclick="showRebootModal()">Reboot Router</button>
-                    <button class="action-btn" onclick="sendCommand('interface print')">List Interfaces (SSH)</button>
-                    <button class="action-btn" onclick="sendCommand('ip route print')">Show Routes</button>
+                    <button class="action-btn" onclick="showRebootModal()">Reboot Device</button>
                 </div>
 
                 <div class="button-group">
@@ -147,18 +172,35 @@
                 <div class="controls-header">
                     <button class="back-btn" onclick="backToDeviceSelection()">← Back</button>
                     <h2>Switch Controls</h2>
+                    <img src="images/crs328-24p.png" alt="Switch" class="controls-device-icon">
                 </div>
                 
                 <div class="button-group">
+                    <h3>Data Retrieval</h3>
+                    <button class="action-btn" onclick="getData('interfaces')">Get Interfaces</button>
+                </div>
+
+                <div class="button-group">
                     <h3>VLAN Management</h3>
-                    <button class="action-btn" disabled>View VLANs (Coming Soon)</button>
-                    <button class="action-btn" disabled>Configure VLANs (Coming Soon)</button>
+                    <button class="action-btn" onclick="getData('vlans')">View VLANs</button>
+                    <button class="action-btn" onclick="openVlanConfigurator()">Configure VLANs</button>
                 </div>
 
                 <div class="button-group">
                     <h3>Port Configuration</h3>
                     <button class="action-btn" disabled>Port Status (Coming Soon)</button>
                     <button class="action-btn" disabled>Port Settings (Coming Soon)</button>
+                </div>
+
+                <div class="button-group">
+                    <h3>Commands</h3>
+                    <button class="action-btn" onclick="showRebootModal()">Reboot Device</button>
+                </div>
+
+                <div class="button-group">
+                    <h3>System Update</h3>
+                    <button class="action-btn update-btn" onclick="checkForUpdates()">Check for Updates</button>
+                    <button class="action-btn update-btn" onclick="checkRouterboardFirmware()">RouterBOARD Firmware</button>
                 </div>
             </div>
 
@@ -167,6 +209,7 @@
                 <div class="controls-header">
                     <button class="back-btn" onclick="backToDeviceSelection()">← Back</button>
                     <h2>Wireless AP Controls</h2>
+                    <img src="images/cap-ax.png" alt="Wireless AP" class="controls-device-icon">
                 </div>
                 
                 <div class="button-group">
@@ -179,6 +222,17 @@
                     <h3>Client Management</h3>
                     <button class="action-btn" disabled>Connected Clients (Coming Soon)</button>
                     <button class="action-btn" disabled>Signal Strength (Coming Soon)</button>
+                </div>
+
+                <div class="button-group">
+                    <h3>Commands</h3>
+                    <button class="action-btn" onclick="showRebootModal()">Reboot Device</button>
+                </div>
+
+                <div class="button-group">
+                    <h3>System Update</h3>
+                    <button class="action-btn update-btn" onclick="checkForUpdates()">Check for Updates</button>
+                    <button class="action-btn update-btn" onclick="checkRouterboardFirmware()">RouterBOARD Firmware</button>
                 </div>
             </div>
 
@@ -249,19 +303,51 @@
                 </div>
 
                 <div class="queue-modify" id="queueModify" style="display: none;">
-                    <h3>Modify CAKE Queue Speeds</h3>
+                    <h3>Modify CAKE Queue Configuration</h3>
                     <div class="speed-controls">
-                        <div class="speed-input">
-                            <label for="maxUpload">Max Upload (Mbps):</label>
-                            <input type="text" id="maxUpload" placeholder="e.g., 10, 50, 100" />
+                        <div class="speed-section">
+                            <h4>Queue Configuration</h4>
+                            <div class="speed-grid-compact">
+                                <div class="speed-input speed-required">
+                                    <label for="maxUpload">Max Upload (Mbps):</label>
+                                    <input type="text" id="maxUpload" placeholder="100" />
+                                </div>
+                                <div class="speed-input speed-optional">
+                                    <label for="burstUpload">Burst Upload (Mbps): <span class="optional-text">(optional)</span></label>
+                                    <input type="text" id="burstUpload" placeholder="e.g. 150" />
+                                </div>
+                                <div class="speed-input speed-optional">
+                                    <label for="burstThresholdUpload">Threshold Upload (Mbps): <span class="optional-text">(optional)</span></label>
+                                    <input type="text" id="burstThresholdUpload" placeholder="e.g. 80" />
+                                </div>
+                                <div class="speed-input speed-optional">
+                                    <label for="burstTimeUpload">Time Upload (seconds): <span class="optional-text">(optional)</span></label>
+                                    <input type="text" id="burstTimeUpload" placeholder="e.g. 2" />
+                                </div>
+                                <div class="speed-input speed-required">
+                                    <label for="maxDownload">Max Download (Mbps):</label>
+                                    <input type="text" id="maxDownload" placeholder="100" />
+                                </div>
+                                <div class="speed-input speed-optional">
+                                    <label for="burstDownload">Burst Download (Mbps): <span class="optional-text">(optional)</span></label>
+                                    <input type="text" id="burstDownload" placeholder="e.g. 150" />
+                                </div>
+                                <div class="speed-input speed-optional">
+                                    <label for="burstThresholdDownload">Threshold Download (Mbps): <span class="optional-text">(optional)</span></label>
+                                    <input type="text" id="burstThresholdDownload" placeholder="e.g. 80" />
+                                </div>
+                                <div class="speed-input speed-optional">
+                                    <label for="burstTimeDownload">Time Download (seconds): <span class="optional-text">(optional)</span></label>
+                                    <input type="text" id="burstTimeDownload" placeholder="e.g. 2" />
+                                </div>
+                            </div>
                         </div>
-                        <div class="speed-input">
-                            <label for="maxDownload">Max Download (Mbps):</label>
-                            <input type="text" id="maxDownload" placeholder="e.g., 25, 100, 200" />
-                        </div>
-                        <div class="speed-input">
-                            <label for="queueComment">Comment:</label>
-                            <input type="text" id="queueComment" placeholder="Optional comment for this queue" />
+                        
+                        <div class="speed-section">
+                            <div class="speed-input">
+                                <label for="queueComment">Comment:</label>
+                                <input type="text" id="queueComment" placeholder="Optional comment for this queue" />
+                            </div>
                         </div>
                         <div class="speed-actions">
                             <button class="queue-btn" onclick="updateQueueSpeeds()">Update CAKE Queue</button>
@@ -282,17 +368,16 @@
             </div>
         </div>
 
-        <div class="output">
-            <h2>Output</h2>
-            <div id="outputArea"></div>
-        </div>
     </div>
 
     <!-- Enhanced Reboot Confirmation Modal -->
     <div class="modal-overlay" id="rebootModal" style="display: none;">
         <div class="modal-content enhanced-modal">
             <div class="modal-header">
-                <h3 id="rebootModalTitle">⚠️ Confirm Router Reboot</h3>
+                <div class="modal-header-content">
+                    <img src="Simple_NG_Logo.png" alt="Network Guardian" class="modal-logo">
+                    <h3 id="rebootModalTitle">⚠️ Confirm Router Reboot</h3>
+                </div>
             </div>
             <div class="modal-body">
                 <p id="rebootModalMessage">Are you sure you want to reboot the router?</p>
@@ -333,6 +418,12 @@
                                 <input type="time" id="scheduleTime" class="schedule-input">
                             </div>
                         </div>
+                        <div class="router-time-info" id="routerTimeInfo" style="display: none;">
+                            <div class="time-display">
+                                <strong>Device Time:</strong>
+                                <div id="routerCurrentTime">Loading...</div>
+                            </div>
+                        </div>
                         <div class="schedule-info">
                             <small>⏰ Scheduled reboots will be executed automatically at the specified time</small>
                         </div>
@@ -344,6 +435,127 @@
                 <button class="modal-btn confirm-btn" id="confirmRebootBtn" onclick="confirmReboot()">Yes, Reboot Now</button>
             </div>
         </div>
+    </div>
+
+    <!-- VLAN Configurator Panel -->
+    <div class="results-display" id="vlanPanel" style="display: none;">
+        <div class="results-header">
+            <div class="vlan-header-left">
+                <h2 id="vlanConfigTitle">🔧 Configure VLANs</h2>
+                <button class="vlan-btn help" onclick="showVlanHelper()">VLAN Helper</button>
+            </div>
+            <button class="clear-btn" onclick="closeVlanPanel()">Close</button>
+        </div>
+        <div class="results-content">
+            <div class="vlan-config-section">
+                <h3>Add VLAN to Ports</h3>
+                <div class="vlan-input-group">
+                    <div class="vlan-input">
+                        <label for="vlanId">VLAN ID:</label>
+                        <input type="number" id="vlanId" placeholder="e.g., 3000" min="1" max="4094" />
+                    </div>
+                    <div class="vlan-input">
+                        <label for="vlanBridge">Bridge:</label>
+                        <select id="vlanBridge">
+                            <option value="">Loading bridges...</option>
+                        </select>
+                    </div>
+                    <div class="vlan-input">
+                        <label for="vlanComment">Comment:</label>
+                        <input type="text" id="vlanComment" placeholder="e.g., Management" />
+                    </div>
+                </div>
+                <div class="vlan-action-buttons">
+                    <button class="vlan-btn" onclick="applyVlanToSelectedPorts()">Tag VLAN on Selected Ports</button>
+                    <button class="vlan-btn untag" onclick="untagVlanFromSelectedPorts()">Untag VLAN from Selected Ports</button>
+                    <button class="vlan-btn access" onclick="createAccessPortOnSelectedPorts()">Create Access Port on Selected Ports</button>
+                    <button class="vlan-btn secondary" onclick="selectAllPorts()">Select All</button>
+                    <button class="vlan-btn secondary" onclick="deselectAllPorts()">Deselect All</button>
+                </div>
+            </div>
+            
+            <div class="vlan-interfaces-section">
+                <h3>Select Interfaces</h3>
+                <div id="vlanInterfacesList">
+                    <p>Loading interfaces...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modals -->
+    <div class="modal-overlay" id="confirmationModal" style="display: none;">
+        <div class="modal-content confirmation-modal">
+            <div class="modal-header">
+                <div class="modal-header-content">
+                    <img src="Simple_NG_Logo.png" alt="Network Guardian" class="modal-logo">
+                    <h3 id="confirmationTitle">Confirm Action</h3>
+                </div>
+            </div>
+            <div class="modal-body">
+                <p id="confirmationMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn cancel-btn" onclick="closeConfirmationModal()">Cancel</button>
+                <button class="modal-btn confirm-btn" id="confirmActionBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="alertModal" style="display: none;">
+        <div class="modal-content alert-modal">
+            <div class="modal-header">
+                <div class="modal-header-content">
+                    <img src="Simple_NG_Logo.png" alt="Network Guardian" class="modal-logo">
+                    <h3 id="alertTitle">Information</h3>
+                </div>
+            </div>
+            <div class="modal-body">
+                <p id="alertMessage">This is an alert message.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn confirm-btn" onclick="closeAlertModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VLAN Helper Modal -->
+    <div class="modal-overlay" id="vlanHelperModal" style="display: none;">
+        <div class="modal-content vlan-helper-modal">
+            <div class="modal-header vlan-helper-header">
+                <div class="modal-header-content">
+                    <img src="Simple_NG_Logo.png" alt="Network Guardian" class="modal-logo">
+                    <h3>🔧 VLAN Configuration Guide</h3>
+                </div>
+            </div>
+            <div class="modal-body vlan-helper-body">
+                <div class="vlan-help-section">
+                    <h4>🔶 Tagged VLANs (Tagging a Port):</h4>
+                    <p>Tagging a port allows VLANs to pass through it. If a device needs to be in VLAN 10 and is several switches away from the router, every switch in between must have VLAN 10 tagged on the ports the traffic moves through. This is how VLANs "travel" across a network.</p>
+                </div>
+                
+                <div class="vlan-help-section">
+                    <h4>🟩 Untagged VLANs (Untagging a Port):</h4>
+                    <p>Untagging tells the switch that VLAN 10 ends here. The traffic is stripped of its VLAN tag and sent to devices like laptops or printers that don't understand VLANs.<br>
+                    Tagged VLANs can still pass through this port upstream, but this specific port gives out VLAN 10 untagged to the end device.</p>
+                </div>
+                
+                <div class="vlan-help-section">
+                    <h4>🔷 PVID (Port VLAN ID):</h4>
+                    <p>Setting the PVID forces all untagged traffic coming into a port to be assigned to a specific VLAN (like VLAN 10).<br>
+                    This is how you turn a port into an access port—anything plugged in automatically becomes part of that VLAN, no VLAN tag required from the device.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn confirm-btn" onclick="closeVlanHelper()">Got It!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Output Section - Always at bottom -->
+    <div class="output">
+        <h2>Output</h2>
+        <div id="outputArea"></div>
     </div>
 
     <script src="script.js"></script>

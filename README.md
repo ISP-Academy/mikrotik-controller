@@ -1,19 +1,27 @@
-# Guardian Relay
+# Guardian Relay v1.1.0
 
-A comprehensive network management platform for multiple device types including:
+A comprehensive network management platform for MikroTik devices with full multi-device support.
 
 ## Supported Devices
-- **Routers**: MikroTik router management, queues, updates, and routing
-- **Switches**: VLAN configuration and port management (coming soon)
-- **Wireless APs**: WiFi management and client monitoring (coming soon)
+- **🔌 Routers**: Complete router management, queues, updates, and routing
+- **🔀 Switches**: Full VLAN configuration, port management, and switching controls
+- **📡 Wireless APs**: WiFi management and client monitoring (coming soon)
 
-## Features
-- Multi-device type support with layered navigation
-- Router management and monitoring
-- Queue management (bandwidth control)
-- Software updates and firmware upgrades
-- Real-time traffic monitoring
-- Scheduled operations
+## 🎉 New in v1.1.0 - Complete VLAN Management
+- **View VLANs**: Comprehensive VLAN viewer with sortable tables
+- **Configure VLANs**: Full VLAN tagging, untagging, and access port creation
+- **PVID Management**: Port VLAN ID configuration and display
+- **VLAN Helper**: Interactive guide for understanding VLAN concepts
+- **Smart Interface Detection**: Automatic filtering of physical vs virtual interfaces
+- **Bridge Integration**: Automatic bridge detection and port management
+
+## Key Features
+- **🎯 Multi-Device Support**: Device-specific control panels with tailored functionality
+- **🔧 Advanced VLAN Management**: Complete Layer 2 switching configuration
+- **📊 Queue Management**: CAKE bandwidth control and traffic shaping  
+- **🔄 System Management**: RouterOS updates, firmware upgrades, and scheduled reboots
+- **📈 Real-Time Monitoring**: Traffic graphs and system resource monitoring
+- **🎨 Modern Interface**: Custom modals, device icons, and responsive design
 
 ## Quick Install
 
@@ -68,15 +76,35 @@ docker-compose up -d
 # Access at http://localhost:3333
 ```
 
-## Features
+## Detailed Features
 
-- **Router Management**: Connect to and monitor MikroTik routers
-- **System Information**: View router status, uptime, CPU, memory usage
-- **Queue Management**: Create and modify bandwidth queues for devices
-- **Software Updates**: Check for and install RouterOS updates
-- **Firmware Upgrades**: Upgrade RouterBOARD firmware
-- **Traffic Monitoring**: Real-time traffic graphs for WAN interfaces
-- **Scheduled Operations**: Schedule reboots and maintenance tasks
+### 🔌 Router Management
+- **System Monitoring**: Real-time CPU, memory, uptime, and platform information
+- **Queue Management**: CAKE queue creation, modification, and bandwidth control
+- **Software Updates**: RouterOS update checking and installation
+- **Firmware Management**: RouterBOARD firmware upgrades
+- **Traffic Monitoring**: Real-time WAN traffic graphs and statistics
+- **Interface Management**: Network interface monitoring and configuration
+
+### 🔀 Switch Management
+- **VLAN Viewer**: Sortable table showing all VLANs with tagged/untagged ports
+- **VLAN Configuration**: Tag/untag VLANs on physical ports with intelligent detection
+- **Access Port Creation**: Automated PVID setting and VLAN untagging
+- **Bridge Integration**: Automatic bridge discovery and port management
+- **PVID Management**: Port VLAN ID display and reset functionality
+- **Interface Filtering**: Smart filtering of physical vs virtual interfaces
+
+### 📡 Wireless AP Management (Coming Soon)
+- **SSID Management**: Configure and monitor wireless networks
+- **Client Monitoring**: View connected devices and signal strength
+- **Security Configuration**: WPA/WPA2/WPA3 settings and management
+
+### 🎨 User Experience
+- **Device-Specific Controls**: Tailored interfaces for each device type
+- **Custom Modals**: Professional confirmation dialogs with Network Guardian branding
+- **Responsive Design**: Optimized for desktop and mobile devices
+- **VLAN Helper**: Interactive guide explaining VLAN concepts and best practices
+- **Real-Time Updates**: Automatic refresh of interface and VLAN data
 
 ## Configuration
 
