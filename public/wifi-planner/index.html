@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Channel Planner - Guardian Relay</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="../Simple_NG_Logo.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../Simple_NG_Logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../Simple_NG_Logo.png">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="wifi-planner.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <img src="../WB_NG_Logo.png" alt="Network Guardian" class="header-logo">
+                <p class="version-text">WiFi Channel Planner v1.2.0</p>
+            </div>
+        </header>
+
+        <!-- Back to Main Navigation -->
+        <div class="navigation-bar">
+            <button class="back-btn" onclick="window.location.href='/'">← Back to Main</button>
+            <h1 class="module-title">📡 WiFi Channel Planner</h1>
+        </div>
+
+        <!-- Configuration Panel -->
+        <div class="config-panel">
+            <h2>Building Configuration</h2>
+            
+            <form id="wifiPlannerForm">
+                <!-- Building Dimensions -->
+                <div class="form-section">
+                    <h3>🏢 Building Layout</h3>
+                    <div class="building-visual-helper">
+                        <div class="visual-explanation">
+                            <div class="hallway-diagram">
+                                <div class="room-row">
+                                    <div class="room-box">Room</div>
+                                    <div class="room-box">Room</div>
+                                    <div class="room-box">Room</div>
+                                    <div class="room-box">Room</div>
+                                    <div class="room-box">Room</div>
+                                </div>
+                                <div class="hallway-line">
+                                    <span>← Hallway →</span>
+                                </div>
+                                <div class="room-row">
+                                    <div class="room-box">Room</div>
+                                    <div class="room-box">Room</div>
+                                    <div class="room-box">Room</div>
+                                    <div class="room-box">Room</div>
+                                    <div class="room-box">Room</div>
+                                </div>
+                            </div>
+                            <div class="dimension-labels">
+                                <div class="label-across">↔ Rooms Along Hallway</div>
+                                <div class="label-down">↕ Rooms Across Hallway</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="roomsAlong">Rooms Along Hallway (Horizontal)</label>
+                            <input type="number" id="roomsAlong" min="1" max="50" value="10" required>
+                            <small>Number of rooms in a row along the hallway</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="roomsAcross">Rooms Across Hallway (Vertical)</label>
+                            <input type="number" id="roomsAcross" min="1" max="20" value="2" required>
+                            <small>Number of rows (typically 2 for both sides)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="floors">Number of Floors</label>
+                            <input type="number" id="floors" min="1" max="10" value="3" required>
+                            <small>Total floors in the building</small>
+                        </div>
+                    </div>
+                    <div class="layout-update-section">
+                        <button type="button" class="update-layout-btn" onclick="updateBuildingDiagram()">
+                            🏗️ Update Building Layout
+                        </button>
+                        <small>Click to preview your building layout before generating the channel plan</small>
+                    </div>
+                </div>
+
+                <!-- Channel Width -->
+                <div class="form-section">
+                    <h3>📊 Channel Width</h3>
+                    <div class="form-group">
+                        <label for="channelWidth">Select Channel Width</label>
+                        <select id="channelWidth" required>
+                            <option value="20">20 MHz</option>
+                            <option value="40">40 MHz</option>
+                            <option value="80">80 MHz</option>
+                            <option value="160">160 MHz</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Frequency Bands -->
+                <div class="form-section">
+                    <h3>📻 Frequency Bands</h3>
+                    <div class="frequency-bands">
+                        <div class="band-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="band24" name="bands" value="2.4">
+                                <span>2.4 GHz</span>
+                            </label>
+                        </div>
+                        
+                        <div class="band-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="band5" name="bands" value="5" checked>
+                                <span>5 GHz</span>
+                            </label>
+                            <div class="sub-bands" id="band5SubBands">
+                                <label class="checkbox-label sub-band">
+                                    <input type="checkbox" id="unii1" name="subBands5" value="unii1" checked>
+                                    <span>UNII-1 (Channels 36-48)</span>
+                                </label>
+                                <label class="checkbox-label sub-band">
+                                    <input type="checkbox" id="unii2" name="subBands5" value="unii2" checked>
+                                    <span>UNII-2A (Channels 52-64)</span>
+                                </label>
+                                <label class="checkbox-label sub-band">
+                                    <input type="checkbox" id="unii2c" name="subBands5" value="unii2c" checked>
+                                    <span>UNII-2C/2E (Channels 100-144)</span>
+                                </label>
+                                <label class="checkbox-label sub-band">
+                                    <input type="checkbox" id="unii3" name="subBands5" value="unii3" checked>
+                                    <span>UNII-3 (Channels 149-165)</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="band-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="band6" name="bands" value="6">
+                                <span>6 GHz</span>
+                            </label>
+                            <div class="sub-bands" id="band6SubBands" style="display: none;">
+                                <label class="checkbox-label sub-band">
+                                    <input type="checkbox" id="unii5" name="subBands6" value="unii5" checked>
+                                    <span>UNII-5 (Ch 1-93, LPI Indoor)</span>
+                                </label>
+                                <label class="checkbox-label sub-band">
+                                    <input type="checkbox" id="unii6" name="subBands6" value="unii6" checked>
+                                    <span>UNII-6 (Ch 97-117, VLP)</span>
+                                </label>
+                                <label class="checkbox-label sub-band">
+                                    <input type="checkbox" id="unii7" name="subBands6" value="unii7" checked>
+                                    <span>UNII-7 (Ch 121-185, AFC)</span>
+                                </label>
+                                <label class="checkbox-label sub-band">
+                                    <input type="checkbox" id="unii8" name="subBands6" value="unii8">
+                                    <span>UNII-8 (Ch 189-233, Pending)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AP Deployment Density -->
+                <div class="form-section">
+                    <h3>🔧 AP Deployment Density</h3>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="apDensity" value="1" checked>
+                            <span>1 AP per room</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="apDensity" value="2">
+                            <span>1 AP per 2 rooms</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="apDensity" value="4">
+                            <span>1 AP per 4 rooms</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="apDensity" value="6">
+                            <span>1 AP per 6 rooms</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="apDensity" value="8">
+                            <span>1 AP per 8 rooms</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <div class="form-actions">
+                    <button type="submit" class="generate-btn">Generate Channel Plan</button>
+                    <button type="button" class="reset-btn" onclick="resetForm()">Reset</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Visualization Panel -->
+        <div class="visualization-panel" id="visualizationPanel" style="display: none;">
+            <div class="visualization-header">
+                <h2>📡 Channel Plan Visualization</h2>
+                <div class="visualization-controls">
+                    <button class="export-btn" onclick="exportPlan()">Export Plan</button>
+                </div>
+            </div>
+            
+            <div class="visualization-content">
+                <div id="buildingVisualization" class="building-visualization">
+                    <!-- Floor plan visualization will be rendered here -->
+                </div>
+                
+                <div class="legend-panel">
+                    <h3>Channel Legend</h3>
+                    <div id="channelLegend" class="channel-legend">
+                        <!-- Channel color legend will be populated here -->
+                    </div>
+                    
+                    <h3>Statistics</h3>
+                    <div id="planStatistics" class="plan-statistics">
+                        <!-- Statistics will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div class="output">
+            <h2>Output</h2>
+            <div id="outputArea"></div>
+        </div>
+    </div>
+
+    <script src="wifi-planner.js"></script>
+</body>
+</html>

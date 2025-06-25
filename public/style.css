@@ -18,7 +18,7 @@ body {
 
 header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 0;
 }
 
 .header-content {
@@ -51,6 +51,66 @@ header {
     
     .version-text {
         font-size: 12px;
+    }
+}
+
+/* Feature Navigation Bar */
+.feature-nav {
+    background: #2c3e50;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.nav-container {
+    display: flex;
+    padding: 8px 16px;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: white;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.nav-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.nav-icon {
+    font-size: 20px;
+}
+
+.nav-text {
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .nav-container {
+        padding: 8px;
+        gap: 10px;
+    }
+    
+    .nav-item {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    
+    .nav-icon {
+        font-size: 18px;
     }
 }
 

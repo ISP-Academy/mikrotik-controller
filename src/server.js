@@ -17,9 +17,16 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
+// WiFi Planner route
+app.get('/wifi-planner', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/wifi-planner/index.html'));
+});
+
+// Serve WiFi Planner static files
+app.use('/wifi-planner', express.static(path.join(__dirname, '../public/wifi-planner')));
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Guardian Relay server running on http://0.0.0.0:${PORT}`);
-    console.log(`Access from Windows at: http://172.24.112.158:${PORT}`);
 });
 
 module.exports = app;
