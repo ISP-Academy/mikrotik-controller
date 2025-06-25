@@ -1,27 +1,55 @@
-# Guardian Relay v1.1.0
+# Guardian Relay v1.2.0
 
-A comprehensive network management platform for MikroTik devices with full multi-device support.
+A comprehensive network management platform for MikroTik devices with professional WiFi planning capabilities.
+
+## Features Overview
+- **📡 WiFi Channel Planner**: Standalone tool for designing optimal channel layouts
+- **🔌 Device Management**: Complete MikroTik router, switch, and wireless AP support
+- **🔧 Advanced VLAN Configuration**: Professional Layer 2 switching management
+- **📊 Traffic & Queue Management**: Bandwidth control and real-time monitoring
+- **🎯 Multi-Device Support**: Device-specific control panels with tailored functionality
+
+## 🎉 New in v1.2.0 - WiFi Channel Planner
+
+### **Standalone Network Planning Tool**
+- **No Device Connection Required**: Works independently for planning new deployments
+- **Multi-Floor Building Support**: Design channel layouts for complex building structures
+- **Complete Spectrum Coverage**: 2.4 GHz, 5 GHz (UNII-1/2A/2C/3), and 6 GHz (UNII-5/6/7/8)
+- **Flexible Channel Widths**: Support for 20, 40, 80, and 160 MHz configurations
+- **3D Interference Avoidance**: Prevents conflicts horizontally, vertically, and between floors
+
+### **Smart AP Deployment**
+- **Configurable Density**: 1 AP per 1/2/4/6/8 rooms with intelligent positioning
+- **Hallway Placement**: Professional AP positioning for optimal coverage
+- **Visual Floor Plans**: Interactive building visualization with color-coded channels
+- **Multi-Band Support**: Simultaneous planning across multiple frequency bands
+
+### **Professional Channel Management**
+- **Pattern-Based Assignment**: Systematic 2.4 GHz channel distribution (1, 6, 11)
+- **Regulatory Compliance**: UNII band selection for regional requirements
+- **Export Functionality**: Generate channel plans for deployment documentation
+- **Real-Time Visualization**: Dynamic updates based on configuration changes
 
 ## Supported Devices
 - **🔌 Routers**: Complete router management, queues, updates, and routing
 - **🔀 Switches**: Full VLAN configuration, port management, and switching controls
 - **📡 Wireless APs**: WiFi management and client monitoring (coming soon)
 
-## 🎉 New in v1.1.0 - Complete VLAN Management
-- **View VLANs**: Comprehensive VLAN viewer with sortable tables
-- **Configure VLANs**: Full VLAN tagging, untagging, and access port creation
-- **PVID Management**: Port VLAN ID configuration and display
-- **VLAN Helper**: Interactive guide for understanding VLAN concepts
-- **Smart Interface Detection**: Automatic filtering of physical vs virtual interfaces
-- **Bridge Integration**: Automatic bridge detection and port management
-
 ## Key Features
-- **🎯 Multi-Device Support**: Device-specific control panels with tailored functionality
-- **🔧 Advanced VLAN Management**: Complete Layer 2 switching configuration
-- **📊 Queue Management**: CAKE bandwidth control and traffic shaping  
-- **🔄 System Management**: RouterOS updates, firmware upgrades, and scheduled reboots
-- **📈 Real-Time Monitoring**: Traffic graphs and system resource monitoring
-- **🎨 Modern Interface**: Custom modals, device icons, and responsive design
+
+### **📡 WiFi Channel Planner**
+- **Building Configuration**: Define rooms along/across hallway and number of floors
+- **Channel Assignment**: Smart algorithms preventing interference across all dimensions
+- **Multi-Band Visualization**: Split-color tiles showing multiple frequency bands
+- **Compact Legend**: Scrollable channel list with frequency ranges
+- **Mobile Responsive**: Optimized for desktop, tablet, and mobile planning
+
+### **🔧 Device Management**
+- **Advanced VLAN Management**: Complete Layer 2 switching configuration
+- **Queue Management**: CAKE bandwidth control and traffic shaping  
+- **System Management**: RouterOS updates, firmware upgrades, and scheduled reboots
+- **Real-Time Monitoring**: Traffic graphs and system resource monitoring
+- **Modern Interface**: Feature navigation bar and responsive design
 
 ## Quick Install
 
