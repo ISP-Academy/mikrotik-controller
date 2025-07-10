@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guardian Relay</title>
+    <title>Guardian Relay v1.3.0</title>
     <link rel="icon" type="image/png" sizes="32x32" href="Simple_NG_Logo.png">
     <link rel="icon" type="image/png" sizes="16x16" href="Simple_NG_Logo.png">
     <link rel="apple-touch-icon" sizes="180x180" href="Simple_NG_Logo.png">
@@ -24,6 +24,10 @@
                 <a href="/wifi-planner" class="nav-item">
                     <span class="nav-icon">📡</span>
                     <span class="nav-text">WiFi Channel Planner</span>
+                </a>
+                <a href="/network-topology" class="nav-item">
+                    <span class="nav-icon">🌐</span>
+                    <span class="nav-text">Network Topology</span>
                 </a>
                 <!-- Future features can be added here -->
             </div>
@@ -306,6 +310,7 @@
                     <div class="search-group">
                         <input type="text" id="searchValue" placeholder="Enter MAC address, hostname, IP address, or comment" />
                         <button class="queue-btn" onclick="searchForRouter()">Search</button>
+                        <button class="queue-btn" onclick="showAllQueues()">Show All Queues</button>
                     </div>
                 </div>
                 

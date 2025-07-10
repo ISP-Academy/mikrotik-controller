@@ -5,6 +5,34 @@ All notable changes to Guardian Relay will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-07-10
+
+### 🎯 New Features
+
+#### **Queue Management Enhancements**
+- **Pagination System**: Display 10 items per page for both DHCP leases and queues
+- **Dual Navigation**: Page selectors at both top and bottom of tables
+- **Show All Queues**: New button to view all queues without DHCP information
+- **Independent Pagination**: Separate page tracking for DHCP and queue sections
+
+#### **IP Blocking System**
+- **BLOCK/UNBLOCK Buttons**: Quick action buttons in DHCP leases table
+- **Firewall Integration**: Manages BLOCKED-CUSTOMERS address list
+- **Visual Indicators**: Red for BLOCK, green for UNBLOCK buttons
+- **Router Time Sync**: Uses router's local time in block comments
+- **Instant Updates**: UI refreshes immediately after actions
+
+### 🔧 Technical Improvements
+- SSH-based implementation for reliable IP blocking
+- Enhanced error handling for firewall operations
+- Improved state management for blocked IPs
+- Better pagination controls with smart page display
+
+### 🐛 Bug Fixes
+- Fixed API connectivity issues with queue operations
+- Resolved timezone discrepancies in block comments
+- Corrected pagination state management
+
 ## [1.2.0] - 2024-12-29
 
 ### 🎉 Major New Features

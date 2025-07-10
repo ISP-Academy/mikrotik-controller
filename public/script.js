@@ -1253,6 +1253,167 @@ function openQueueManager() {
     document.getElementById('searchValue').value = '';
 }
 
+function createPaginationControls(currentPage, totalPages, totalItems, type = 'Queue') {
+    let html = '<div class="pagination-controls">';
+    html += `<span class="pagination-info">Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, totalItems)} of ${totalItems} ${type === 'DHCP' ? 'DHCP leases' : 'queues'}</span>`;
+    html += '<div class="pagination-buttons">';
+    
+    // Previous button
+    if (currentPage > 1) {
+        html += `<button class="queue-btn" onclick="changePage(${currentPage - 1}, '${type}')">Previous</button>`;
+    }
+    
+    // Page numbers
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
+    
+    if (startPage > 1) {
+        html += `<button class="queue-btn" onclick="changePage(1, '${type}')">1</button>`;
+        if (startPage > 2) html += '<span>...</span>';
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === currentPage) {
+            html += `<button class="queue-btn active">${i}</button>`;
+        } else {
+            html += `<button class="queue-btn" onclick="changePage(${i}, '${type}')">${i}</button>`;
+        }
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) html += '<span>...</span>';
+        html += `<button class="queue-btn" onclick="changePage(${totalPages}, '${type}')">${totalPages}</button>`;
+    }
+    
+    // Next button
+    if (currentPage < totalPages) {
+        html += `<button class="queue-btn" onclick="changePage(${currentPage + 1}, '${type}')">Next</button>`;
+    }
+    
+    html += '</div></div>';
+    return html;
+}
+
+function changePage(page, type) {
+    if (allQueueData) {
+        if (type === 'DHCP') {
+            displaySearchResults(allQueueData, true, page, currentQueuePage, isShowingOnlyQueues);
+        } else {
+            displaySearchResults(allQueueData, true, currentDHCPPage, page, isShowingOnlyQueues);
+        }
+    }
+}
+
+async function loadBlockedCustomers() {
+    if (!currentRouter) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/blocked-customers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                router: currentRouter
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            blockedCustomers = result.data.addresses;
+        } else {
+            console.error('Failed to load blocked customers:', result.error);
+        }
+    } catch (error) {
+        console.error('Error loading blocked customers:', error.message);
+    }
+}
+
+async function toggleBlock(ipAddress, action) {
+    if (!currentRouter) {
+        showOutput('Please connect to a router first');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/block-customer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                router: currentRouter,
+                action: action,
+                ipAddress: ipAddress
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update the local blocked customers list
+            if (action === 'block') {
+                if (!blockedCustomers.includes(ipAddress)) {
+                    blockedCustomers.push(ipAddress);
+                }
+            } else {
+                blockedCustomers = blockedCustomers.filter(ip => ip !== ipAddress);
+            }
+            
+            // Refresh the display
+            if (allQueueData) {
+                displaySearchResults(allQueueData, true, currentDHCPPage, currentQueuePage, isShowingOnlyQueues);
+            }
+            
+            showOutput(`IP ${ipAddress} has been ${action}ed successfully`);
+        } else {
+            showOutput(`Failed to ${action} IP ${ipAddress}: ${result.error}`);
+        }
+    } catch (error) {
+        showOutput(`Error: ${error.message}`);
+    }
+}
+
+async function showAllQueues() {
+    if (!currentRouter) {
+        showOutput('Please connect to a router first');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/all-queues', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                router: currentRouter
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            allQueueData = {
+                dhcp: [],
+                queues: result.data.queues
+            };
+            
+            // Load blocked customers before displaying results
+            await loadBlockedCustomers();
+            
+            displaySearchResults(allQueueData, true, 1, 1, true);
+        } else {
+            showOutput(`Failed to fetch queues: ${result.error}`);
+        }
+    } catch (error) {
+        showOutput(`Error: ${error.message}`);
+    }
+}
+
 async function searchForRouter() {
     const searchValue = document.getElementById('searchValue').value.trim();
     
@@ -1285,7 +1446,12 @@ async function searchForRouter() {
         
         if (result.success) {
             currentSearchResults = result.data;
-            displaySearchResults(result.data);
+            allQueueData = result.data;
+            
+            // Load blocked customers before displaying results
+            await loadBlockedCustomers();
+            
+            displaySearchResults(result.data, true, 1, 1, false);
             showOutput(`Search completed. Found results in DHCP and Queue tables.`);
         } else {
             showOutput(`Search failed: ${result.error}`);
@@ -1295,34 +1461,89 @@ async function searchForRouter() {
     }
 }
 
-function displaySearchResults(data) {
+// Pagination variables
+let currentQueuePage = 1;
+let currentDHCPPage = 1;
+let itemsPerPage = 10;
+let allQueueData = null;
+let isShowingOnlyQueues = false;
+let blockedCustomers = [];
+
+function displaySearchResults(data, isPaginated = false, dhcpPage = 1, queuePage = 1, showOnlyQueues = false) {
     const resultsDiv = document.getElementById('queueResults');
-    let html = '<h3>Search Results</h3>';
+    isShowingOnlyQueues = showOnlyQueues;
+    let html = showOnlyQueues ? '<h3>All Queues</h3>' : '<h3>Search Results</h3>';
     
     // DHCP Leases
-    if (data.dhcp && data.dhcp.length > 0) {
+    if (!showOnlyQueues && data.dhcp && data.dhcp.length > 0) {
+        let dhcpToDisplay = data.dhcp;
+        let totalDHCP = data.dhcp.length;
+        let totalDHCPPages = 1;
+        
+        // Handle pagination if enabled
+        if (isPaginated && totalDHCP > itemsPerPage) {
+            totalDHCPPages = Math.ceil(totalDHCP / itemsPerPage);
+            currentDHCPPage = Math.min(dhcpPage, totalDHCPPages);
+            const startIndex = (currentDHCPPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            dhcpToDisplay = data.dhcp.slice(startIndex, endIndex);
+            
+            // Add pagination controls at the top
+            html += createPaginationControls(currentDHCPPage, totalDHCPPages, totalDHCP, 'DHCP');
+        }
+        
         html += '<h4>DHCP Leases</h4>';
-        html += '<table class="queue-table"><thead><tr><th>IP Address</th><th>MAC Address</th><th>Hostname</th><th>Status</th><th>Comment</th><th>Action</th></tr></thead><tbody>';
-        data.dhcp.forEach(lease => {
+        html += '<table class="queue-table"><thead><tr><th>IP Address</th><th>MAC Address</th><th>Hostname</th><th>Status</th><th>Comment</th><th>Actions</th></tr></thead><tbody>';
+        dhcpToDisplay.forEach(lease => {
+            const isBlocked = blockedCustomers.includes(lease.address);
             html += '<tr>';
             html += `<td><span class="ip-address">${lease.address || '-'}</span></td>`;
             html += `<td>${lease['mac-address'] || '-'}</td>`;
             html += `<td>${lease['host-name'] || '-'}</td>`;
             html += `<td><span class="status-badge ${lease.status === 'bound' ? 'status-bound' : 'status-waiting'}">${lease.status || 'unknown'}</span></td>`;
             html += `<td class="comment-cell">${lease.comment || '-'}</td>`;
-            html += `<td><button class="queue-btn" onclick="selectTarget('${lease.address}', 'DHCP: ${lease['host-name'] || lease.address}')">Select</button></td>`;
+            html += `<td>`;
+            html += `<button class="queue-btn" onclick="selectTarget('${lease.address}', 'DHCP: ${lease['host-name'] || lease.address}')">Select</button>`;
+            if (lease.address) {
+                const blockAction = isBlocked ? 'unblock' : 'block';
+                const blockText = isBlocked ? 'UNBLOCK' : 'BLOCK';
+                const blockClass = isBlocked ? 'queue-btn-unblock' : 'queue-btn-block';
+                html += ` <button class="queue-btn ${blockClass}" onclick="toggleBlock('${lease.address}', '${blockAction}')">${blockText}</button>`;
+            }
+            html += `</td>`;
             html += '</tr>';
         });
         html += '</tbody></table>';
+        
+        // Add pagination controls at the bottom if paginated
+        if (isPaginated && totalDHCPPages > 1) {
+            html += createPaginationControls(currentDHCPPage, totalDHCPPages, totalDHCP, 'DHCP');
+        }
     }
     
     // ARP Entries removed - using DHCP only
     
     // Existing Queues
     if (data.queues && data.queues.length > 0) {
+        let queuesToDisplay = data.queues;
+        let totalQueues = data.queues.length;
+        let totalPages = 1;
+        
+        // Handle pagination if enabled
+        if (isPaginated && totalQueues > itemsPerPage) {
+            totalPages = Math.ceil(totalQueues / itemsPerPage);
+            currentQueuePage = Math.min(queuePage, totalPages);
+            const startIndex = (currentQueuePage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            queuesToDisplay = data.queues.slice(startIndex, endIndex);
+            
+            // Add pagination controls at the top
+            html += createPaginationControls(currentQueuePage, totalPages, totalQueues, 'Queue');
+        }
+        
         html += '<h4>Existing Queues</h4>';
         html += '<table class="queue-table"><thead><tr><th>Name</th><th>Target</th><th>Max Limit</th><th>Action</th></tr></thead><tbody>';
-        data.queues.forEach(queue => {
+        queuesToDisplay.forEach(queue => {
             html += '<tr>';
             html += `<td>${queue.name || '-'}</td>`;
             html += `<td><span class="ip-address">${queue.target || '-'}</span></td>`;
@@ -1331,9 +1552,14 @@ function displaySearchResults(data) {
             html += '</tr>';
         });
         html += '</tbody></table>';
+        
+        // Add pagination controls at the bottom if paginated
+        if (isPaginated && totalPages > 1) {
+            html += createPaginationControls(currentQueuePage, totalPages, totalQueues, 'Queue');
+        }
     }
     
-    if (data.dhcp.length === 0 && data.queues.length === 0) {
+    if ((!data.dhcp || data.dhcp.length === 0) && (!data.queues || data.queues.length === 0)) {
         html += '<p>No results found for the search term.</p>';
     }
     

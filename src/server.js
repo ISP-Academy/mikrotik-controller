@@ -25,6 +25,14 @@ app.get('/wifi-planner', (req, res) => {
 // Serve WiFi Planner static files
 app.use('/wifi-planner', express.static(path.join(__dirname, '../public/wifi-planner')));
 
+// Network Topology route
+app.get('/network-topology', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/network-topology/index.html'));
+});
+
+// Serve Network Topology static files
+app.use('/network-topology', express.static(path.join(__dirname, '../public/network-topology')));
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Guardian Relay server running on http://0.0.0.0:${PORT}`);
 });

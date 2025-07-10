@@ -729,6 +729,63 @@ header {
     background-color: #7f8c8d;
 }
 
+/* Pagination Controls */
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #2a2a2a;
+    border-radius: 6px;
+}
+
+.pagination-info {
+    color: #ccc;
+    font-size: 14px;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.pagination-buttons span {
+    color: #666;
+    padding: 0 5px;
+}
+
+.queue-btn.active {
+    background-color: #007bff;
+    color: white;
+    cursor: default;
+}
+
+.queue-btn.active:hover {
+    background-color: #007bff;
+}
+
+.queue-btn-block {
+    background-color: #dc3545;
+    color: white;
+    margin-left: 5px;
+}
+
+.queue-btn-block:hover {
+    background-color: #c82333;
+}
+
+.queue-btn-unblock {
+    background-color: #28a745;
+    color: white;
+    margin-left: 5px;
+}
+
+.queue-btn-unblock:hover {
+    background-color: #218838;
+}
+
 .firmware-table {
     width: 100%;
     border-collapse: collapse;

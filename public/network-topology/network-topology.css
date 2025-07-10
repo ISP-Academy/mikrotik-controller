@@ -1,0 +1,312 @@
+/* Network Topology Visualizer Specific Styles */
+
+.device-info {
+    color: #666;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.topology-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 700px;
+    height: calc(100vh - 200px);
+}
+
+.topology-header {
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.device-info-bar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#connectedDevice {
+    color: #00ff00;
+    font-weight: bold;
+}
+
+.device-count {
+    color: #ffc107;
+    font-weight: bold;
+    margin-left: 15px;
+    padding: 5px 10px;
+    background: rgba(255, 193, 7, 0.1);
+    border-radius: 4px;
+    border: 1px solid #ffc107;
+}
+
+.disconnect-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.disconnect-btn:hover {
+    background: #c82333;
+}
+
+.topology-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.control-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.control-btn:hover {
+    background: #0056b3;
+}
+
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #1a1a1a;
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+
+.zoom-btn {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.zoom-btn:hover {
+    background: #555;
+}
+
+#zoomLevel {
+    color: #ccc;
+    min-width: 50px;
+    text-align: center;
+}
+
+.topology-container {
+    flex: 1;
+    background: #1a1a1a;
+    border-radius: 0 0 8px 8px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 20px;
+    min-height: 600px;
+    height: 100%;
+}
+
+.topology-canvas {
+    position: absolute;
+    width: 5000px;
+    height: 5000px;
+    transform-origin: center center;
+    cursor: grab;
+    background-image: 
+        linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+}
+
+.topology-canvas.dragging {
+    cursor: grabbing;
+}
+
+/* Network Node Styles */
+.network-node {
+    position: absolute;
+    background: #2a2a2a;
+    border: 2px solid #444;
+    border-radius: 8px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    text-align: center;
+}
+
+.network-node:hover {
+    border-color: #007bff;
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.network-node.selected {
+    border-color: #00ff00;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.node-icon {
+    font-size: 32px;
+    margin-bottom: 5px;
+}
+
+.node-name {
+    color: #fff;
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.node-ip {
+    color: #aaa;
+    font-size: 12px;
+}
+
+.node-info {
+    color: #888;
+    font-size: 11px;
+    margin-top: 5px;
+}
+
+/* Different node types */
+.network-node.router {
+    border-color: #28a745;
+}
+
+.network-node.switch {
+    border-color: #17a2b8;
+}
+
+.network-node.ap {
+    border-color: #ffc107;
+}
+
+.network-node.unknown {
+    border-color: #6c757d;
+}
+
+/* Connection Lines */
+.connection-line {
+    position: absolute;
+    background: #444;
+    height: 2px;
+    transform-origin: left center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.connection-line.active {
+    background: #00ff00;
+}
+
+.connection-line.wireless {
+    background: repeating-linear-gradient(
+        90deg,
+        #ffc107,
+        #ffc107 5px,
+        transparent 5px,
+        transparent 10px
+    );
+}
+
+/* Device Details Panel */
+.device-details {
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.device-details h3 {
+    margin-bottom: 15px;
+    color: #fff;
+}
+
+#deviceDetailsContent {
+    color: #ccc;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid #444;
+}
+
+.detail-label {
+    font-weight: bold;
+    color: #aaa;
+}
+
+.detail-value {
+    color: #fff;
+}
+
+/* Loading and Error States */
+.loading {
+    text-align: center;
+    padding: 50px;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error-message {
+    background: #dc3545;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .topology-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .topology-controls {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .network-node {
+        min-width: 100px;
+        padding: 10px;
+    }
+
+    .node-icon {
+        font-size: 24px;
+    }
+}

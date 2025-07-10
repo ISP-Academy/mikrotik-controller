@@ -147,7 +147,8 @@ router.post('/connect', async (req, res) => {
         res.json({ 
             success: true, 
             message: 'Connected successfully',
-            systemInfo: systemInfo
+            systemInfo: systemInfo,
+            deviceName: identity[0]?.name || 'Unknown Device'
         });
     } catch (error) {
         let errorMessage = error.message;
@@ -618,6 +619,189 @@ router.post('/routerboard-firmware', async (req, res) => {
     });
 });
 
+router.post('/blocked-customers', async (req, res) => {
+    const { router: routerConfig } = req.body;
+    
+    try {
+        const api = new RouterOSAPI({
+            host: routerConfig.ip,
+            user: routerConfig.username,
+            password: routerConfig.password,
+            port: parseInt(routerConfig.apiPort || '8728'),
+            timeout: 10000
+        });
+        
+        await api.connect();
+        
+        // Get BLOCKED-CUSTOMERS address list
+        const addressList = await api.write('/ip/firewall/address-list/print', {
+            '?list': 'BLOCKED-CUSTOMERS'
+        });
+        
+        await api.close();
+        
+        res.json({
+            success: true,
+            data: {
+                addresses: addressList.map(addr => addr.address)
+            }
+        });
+    } catch (error) {
+        res.json({ success: false, error: error.message });
+    }
+});
+
+router.post('/block-customer', async (req, res) => {
+    const { router: routerConfig, action, ipAddress } = req.body;
+    
+    try {
+        const ssh = new Client();
+        
+        await new Promise((resolve, reject) => {
+            ssh.connect({
+                host: routerConfig.ip,
+                username: routerConfig.username,
+                password: routerConfig.password,
+                port: parseInt(routerConfig.sshPort || '22'),
+                readyTimeout: 10000
+            });
+            
+            ssh.on('ready', () => {
+                if (action === 'block') {
+                    // First get router time, then add IP to BLOCKED-CUSTOMERS list
+                    ssh.exec('/system/clock/print', (err, timeStream) => {
+                        if (err) {
+                            ssh.end();
+                            reject(err);
+                            return;
+                        }
+                        
+                        let timeOutput = '';
+                        timeStream.on('data', (data) => {
+                            timeOutput += data.toString();
+                        });
+                        
+                        timeStream.on('close', () => {
+                            // Extract time and date from router output
+                            const timeMatch = timeOutput.match(/time:\s*([^\r\n]+)/);
+                            const dateMatch = timeOutput.match(/date:\s*([^\r\n]+)/);
+                            
+                            let routerTime = 'unknown time';
+                            if (timeMatch && dateMatch) {
+                                routerTime = `${dateMatch[1]} ${timeMatch[1]}`;
+                            }
+                            
+                            // Now add the IP with router time
+                            const addCommand = `/ip/firewall/address-list/add list=BLOCKED-CUSTOMERS address=${ipAddress} comment="Blocked via Guardian Relay - ${routerTime}"`;
+                            
+                            ssh.exec(addCommand, (err, stream) => {
+                                if (err) {
+                                    ssh.end();
+                                    reject(err);
+                                    return;
+                                }
+                                
+                                let output = '';
+                                let error = '';
+                                
+                                stream.on('close', () => {
+                                    ssh.end();
+                                    if (error) {
+                                        reject(new Error(error));
+                                    } else {
+                                        resolve(output);
+                                    }
+                                });
+                                
+                                stream.on('data', (data) => {
+                                    output += data.toString();
+                                });
+                                
+                                stream.stderr.on('data', (data) => {
+                                    error += data.toString();
+                                });
+                            });
+                        });
+                    });
+                } else if (action === 'unblock') {
+                    // Remove IP from BLOCKED-CUSTOMERS list
+                    const command = `:foreach i in=[/ip/firewall/address-list/find where list="BLOCKED-CUSTOMERS" and address="${ipAddress}"] do={/ip/firewall/address-list/remove $i}`;
+                    
+                    ssh.exec(command, (err, stream) => {
+                        if (err) {
+                            ssh.end();
+                            reject(err);
+                            return;
+                        }
+                        
+                        let output = '';
+                        let error = '';
+                        
+                        stream.on('close', () => {
+                            ssh.end();
+                            if (error) {
+                                reject(new Error(error));
+                            } else {
+                                resolve(output);
+                            }
+                        });
+                        
+                        stream.on('data', (data) => {
+                            output += data.toString();
+                        });
+                        
+                        stream.stderr.on('data', (data) => {
+                            error += data.toString();
+                        });
+                    });
+                }
+            });
+            
+            ssh.on('error', (err) => {
+                reject(err);
+            });
+        });
+        
+        res.json({
+            success: true,
+            message: `IP ${ipAddress} has been ${action}ed successfully`
+        });
+    } catch (error) {
+        res.json({ success: false, error: error.message });
+    }
+});
+
+router.post('/all-queues', async (req, res) => {
+    const { router: routerConfig } = req.body;
+    
+    try {
+        const api = new RouterOSAPI({
+            host: routerConfig.ip,
+            user: routerConfig.username,
+            password: routerConfig.password,
+            port: parseInt(routerConfig.apiPort || '8728'),
+            timeout: 10000
+        });
+        
+        await api.connect();
+        
+        // Get all queues
+        const queues = await api.write('/queue/simple/print');
+        
+        await api.close();
+        
+        res.json({
+            success: true,
+            data: {
+                queues: queues,
+                total: queues.length
+            }
+        });
+    } catch (error) {
+        res.json({ success: false, error: error.message });
+    }
+});
+
 router.post('/queue-search', async (req, res) => {
     const { router: routerConfig, searchValue, searchType } = req.body;
     
@@ -984,5 +1168,426 @@ router.post('/traffic-data', async (req, res) => {
         res.json({ success: false, error: error.message });
     }
 });
+
+// RoMON Discovery endpoint for Network Topology
+router.post('/romon-discover', async (req, res) => {
+    console.log('RoMON Discovery endpoint hit:', req.body);
+    const routerConfig = req.body;
+    
+    // Validate required fields
+    console.log('Validating parameters - ip:', !!routerConfig.ip, 'username:', !!routerConfig.username, 'password:', !!routerConfig.password);
+    if (!routerConfig.ip || !routerConfig.username || !routerConfig.password) {
+        console.log('Validation failed - missing required parameters');
+        return res.json({ 
+            success: false, 
+            error: 'Missing required connection parameters (ip, username, password)' 
+        });
+    }
+    console.log('Validation passed, proceeding with RoMON discovery');
+    
+    try {
+        console.log('Starting RoMON discovery process...');
+        console.log('Creating SSH client...');
+        const conn = new Client();
+        console.log('SSH client created successfully');
+        let output = '';
+        let errorOutput = '';
+        
+        const connectionPromise = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                console.log('RoMON discovery timeout reached, ending connection');
+                conn.end();
+                reject(new Error('RoMON discovery timeout - taking too long'));
+            }, 20000); // Longer timeout for large networks
+            
+            conn.on('ready', () => {
+                console.log('SSH connection established for RoMON discovery');
+                
+                // Use RoMON with proplist to get identity names
+                const command = '/tool/romon/discover proplist=cost,identity,address,path';
+                console.log('Executing RoMON command:', command);
+                
+                // Track devices as we receive them to avoid overload
+                const deviceMap = new Map(); // Use MAC as key to deduplicate
+                let dataProcessingComplete = false;
+                
+                // Set a command-specific timeout - increased to allow more devices
+                const commandTimeout = setTimeout(() => {
+                    console.log('RoMON command timeout - forcing completion');
+                    if (!dataProcessingComplete) {
+                        dataProcessingComplete = true;
+                        clearTimeout(timeout);
+                        conn.end();
+                        const devices = Array.from(deviceMap.values());
+                        console.log('Timeout - collected', devices.length, 'unique devices');
+                        resolve({ devices });
+                    }
+                }, 10000); // 10 second timeout to gather all data
+                
+                conn.exec(command, (err, stream) => {
+                    if (err) {
+                        clearTimeout(commandTimeout);
+                        clearTimeout(timeout);
+                        reject(err);
+                        return;
+                    }
+                    
+                    stream.on('close', (code, signal) => {
+                        if (!dataProcessingComplete) {
+                            dataProcessingComplete = true;
+                            clearTimeout(commandTimeout);
+                            clearTimeout(timeout);
+                            conn.end();
+                            
+                            console.log('RoMON command completed with code:', code);
+                            
+                            // Use devices collected incrementally
+                            const devices = Array.from(deviceMap.values());
+                            console.log('Final device count:', devices.length);
+                            console.log('Collected devices:', devices.map(d => ({ name: d.identity, mac: d.mac, cost: d.cost })));
+                            resolve({ devices });
+                        }
+                    });
+                    
+                    stream.on('data', (data) => {
+                        output += data.toString();
+                        console.log('Received RoMON data chunk, total length now:', output.length);
+                        
+                        // Log raw output for debugging path parsing
+                        if (output.length < 2000) {
+                            console.log('Raw RoMON output so far:\n', output);
+                        }
+                        
+                        // Process only complete lines to avoid partial parsing
+                        const lines = output.split('\n');
+                        const completeOutput = lines.slice(0, -1).join('\n'); // Exclude last partial line
+                        
+                        const newDevices = parseRomonOutput(completeOutput);
+                        newDevices.forEach(device => {
+                            if (device.mac && !deviceMap.has(device.mac)) {
+                                deviceMap.set(device.mac, device);
+                                console.log('Added device:', device.identity || device.mac, 'cost:', device.cost);
+                                if (device.path && device.path.length > 0) {
+                                    console.log('  -> Path:', device.path.join(' → '));
+                                }
+                            }
+                        });
+                        
+                        // Log progress
+                        console.log('Current device count:', deviceMap.size);
+                        
+                        // Stop collecting if we have enough devices (prevent overload)
+                        if (deviceMap.size >= 100 && !dataProcessingComplete) {
+                            console.log('Collected enough devices (100+), stopping RoMON discovery');
+                            dataProcessingComplete = true;
+                            clearTimeout(commandTimeout);
+                            clearTimeout(timeout);
+                            conn.end();
+                            const devices = Array.from(deviceMap.values());
+                            resolve({ devices });
+                        }
+                    });
+                    
+                    stream.stderr.on('data', (data) => {
+                        errorOutput += data.toString();
+                        console.log('RoMON stderr:', data.toString());
+                    });
+                });
+            });
+            
+            conn.on('error', (err) => {
+                clearTimeout(timeout);
+                console.log('SSH connection error:', err.message);
+                reject(err);
+            });
+        });
+        
+        console.log('Attempting SSH connection for RoMON to:', routerConfig.ip, 'port:', routerConfig.sshPort || routerConfig.port || '22');
+        conn.connect({
+            host: routerConfig.ip,
+            username: routerConfig.username,
+            password: routerConfig.password,
+            port: parseInt(routerConfig.sshPort || routerConfig.port || '22'),
+            readyTimeout: 10000
+        });
+        
+        const topology = await connectionPromise;
+        
+        // Also try to get additional device info via API if possible
+        try {
+            const api = new RouterOSAPI({
+                host: routerConfig.ip,
+                user: routerConfig.username,
+                password: routerConfig.password,
+                port: parseInt(routerConfig.apiPort || '8728'),
+                timeout: 5000
+            });
+            
+            await api.connect();
+            
+            // Get neighbor information (LLDP/CDP) to map MAC addresses to device names
+            const neighbors = await api.write('/ip/neighbor/print');
+            console.log('Found', neighbors.length, 'neighbors from API');
+            
+            // Create a MAC to name mapping from neighbors
+            const macToName = {};
+            neighbors.forEach(neighbor => {
+                const mac = neighbor['mac-address'] || neighbor.mac;
+                const identity = neighbor.identity || neighbor.system || neighbor['system-name'];
+                if (mac && identity) {
+                    macToName[mac.toUpperCase()] = identity;
+                    console.log('Mapped MAC', mac, 'to', identity);
+                }
+            });
+            
+            // Enhance topology devices with names from neighbor info
+            if (topology.devices && topology.devices.length > 0) {
+                topology.devices.forEach(device => {
+                    const upperMac = device.address.toUpperCase();
+                    if (macToName[upperMac]) {
+                        device.identity = macToName[upperMac];
+                        device.name = macToName[upperMac];
+                        console.log('Enhanced device', device.address, 'with name', device.name);
+                    }
+                });
+            }
+            
+            // Get interface information
+            const interfaces = await api.write('/interface/print', { 
+                '.proplist': 'name,type,mac-address,comment' 
+            });
+            
+            // Try to get routing table for distance estimation
+            let routes = [];
+            try {
+                routes = await api.write('/ip/route/print', {
+                    '.proplist': 'dst-address,gateway,distance,scope'
+                });
+            } catch (routeError) {
+                console.log('Could not get routing table:', routeError.message);
+            }
+            
+            // If RoMON didn't find devices, use neighbors as fallback
+            console.log('RoMON devices found:', topology.devices ? topology.devices.length : 0);
+            if (!topology.devices || topology.devices.length === 0) {
+                console.log('Using neighbor discovery fallback, found neighbors:', neighbors.length);
+                
+                // Function to estimate cost based on various factors
+                function estimateCost(neighbor, index) {
+                    // Try to determine cost based on interface type and device properties
+                    let estimatedCost = 100; // Base cost (1 hop)
+                    
+                    // Check if this is a direct neighbor vs multi-hop based on interface
+                    const interfaceName = neighbor.interface || '';
+                    const deviceIP = neighbor.address || neighbor['address4'] || '';
+                    
+                    // Look for routing entries that might indicate distance
+                    if (deviceIP && routes.length > 0) {
+                        const relatedRoute = routes.find(route => 
+                            route.gateway === deviceIP || 
+                            route['dst-address']?.includes(deviceIP.split('.').slice(0, 3).join('.'))
+                        );
+                        
+                        if (relatedRoute && relatedRoute.distance) {
+                            // Use routing distance as a cost indicator
+                            estimatedCost = parseInt(relatedRoute.distance) * 100;
+                        }
+                    }
+                    
+                    // Estimate based on interface type
+                    if (interfaceName.includes('vlan') || interfaceName.includes('bridge')) {
+                        estimatedCost = 100; // Direct connection through VLAN/bridge
+                    } else if (interfaceName.includes('tunnel') || interfaceName.includes('vpn')) {
+                        estimatedCost = 300; // Tunnel connections are typically multi-hop
+                    } else if (interfaceName.includes('wireless') || interfaceName.includes('wlan')) {
+                        estimatedCost = 200; // Wireless might be one hop away
+                    }
+                    
+                    // Add some variation based on position to simulate network topology
+                    // This creates a more realistic tree structure
+                    if (index < 5) {
+                        estimatedCost = 100; // First 5 are direct neighbors
+                    } else if (index < 15) {
+                        estimatedCost = 200; // Next 10 are one hop away
+                    } else if (index < 25) {
+                        estimatedCost = 300; // Next 10 are two hops away
+                    } else {
+                        estimatedCost = 400; // Rest are three hops away
+                    }
+                    
+                    return estimatedCost;
+                }
+                
+                topology.devices = neighbors.map((neighbor, index) => ({
+                    mac: neighbor['mac-address'],
+                    identity: neighbor.identity || neighbor['system-name'] || 'Unknown',
+                    ip: neighbor.address || neighbor['address4'] || '',
+                    interface: neighbor.interface,
+                    platform: neighbor.platform || neighbor['system-description'] || '',
+                    type: detectDeviceTypeFromNeighbor(neighbor),
+                    cost: estimateCost(neighbor, index)
+                }));
+                
+                console.log('Neighbor fallback devices with estimated costs:', topology.devices.map(d => ({ 
+                    name: d.identity, 
+                    cost: d.cost 
+                })));
+            } else {
+                console.log('Using RoMON devices with costs:', topology.devices.map(d => ({ name: d.identity, cost: d.cost })));
+            }
+            
+            await api.close();
+            
+            // Merge additional data
+            topology.neighbors = neighbors;
+            topology.interfaces = interfaces;
+            
+        } catch (apiError) {
+            console.log('API connection failed, using SSH data only:', apiError.message);
+        }
+        
+        res.json({ success: true, topology });
+        
+    } catch (error) {
+        console.error('RoMON discovery error:', error);
+        res.json({ success: false, error: error.message });
+    }
+});
+
+// Helper function to detect device type from neighbor info
+function detectDeviceTypeFromNeighbor(neighbor) {
+    const platform = (neighbor.platform || neighbor['system-description'] || '').toLowerCase();
+    const identity = (neighbor.identity || neighbor['system-name'] || '').toLowerCase();
+    
+    if (platform.includes('routeros') || platform.includes('mikrotik')) {
+        if (platform.includes('switch') || identity.includes('switch')) return 'switch';
+        if (platform.includes('cap') || identity.includes('cap') || identity.includes('ap')) return 'ap';
+        return 'router';
+    }
+    
+    if (platform.includes('switch') || identity.includes('switch')) return 'switch';
+    if (platform.includes('ap') || identity.includes('ap')) return 'ap';
+    
+    return 'unknown';
+}
+
+// Helper function to parse RoMON output 
+function parseRomonOutput(output) {
+    const devices = [];
+    const lines = output.split('\n');
+    
+    console.log('Parsing RoMON output, total lines:', lines.length);
+    
+    // Parse RoMON output with identity
+    // Format: A COST IDENTITY ADDRESS PATH
+    // Path spans multiple lines with MAC addresses
+    let isDataSection = false;
+    let deviceCount = 0;
+    let i = 0;
+    
+    while (i < lines.length) {
+        const trimmedLine = lines[i].trim();
+        
+        // Skip header lines and empty lines
+        if (trimmedLine.startsWith('Flags:') || trimmedLine.includes('COST') || trimmedLine === '') {
+            if (trimmedLine.includes('COST') && trimmedLine.includes('IDENTITY')) {
+                isDataSection = true;
+                console.log('Found COST/IDENTITY header at line', i, '- data section starts');
+            }
+            i++;
+            continue;
+        }
+        
+        // Process data lines starting with flag 'A' (Active devices)
+        if (isDataSection && trimmedLine.startsWith('A ')) {
+            // Parse the main device line
+            // Format: A COST IDENTITY ADDRESS PATH
+            // Split only the first few fields, identity might have spaces
+            const match = trimmedLine.match(/^A\s+(\d+)\s+(.+?)\s+([0-9A-Fa-f:]+)\s*(.*)/);
+            
+            if (match) {
+                const device = {};
+                
+                // Parse the main fields
+                device.cost = parseInt(match[1]) || 100;
+                device.identity = match[2].trim();
+                device.address = match[3];
+                device.hops = Math.ceil(device.cost / 200); // Calculate hops from cost
+                device.path = [];
+                
+                // Parse remaining part for path MAC addresses
+                const pathPart = match[4];
+                if (pathPart) {
+                    const pathParts = pathPart.split(/\s+/);
+                    pathParts.forEach(part => {
+                        if (isMacAddress(part)) {
+                            device.path.push(part);
+                        }
+                    });
+                }
+                
+                // Check following lines for additional path information
+                let nextLineIndex = i + 1;
+                
+                while (nextLineIndex < lines.length) {
+                    const nextLine = lines[nextLineIndex].trim();
+                    
+                    // Stop if we hit another device line or header
+                    if (nextLine.startsWith('A ') || nextLine === '' || 
+                        nextLine.startsWith('Flags:') || nextLine.includes('COST')) {
+                        break;
+                    }
+                    
+                    // Parse MAC addresses from continuation lines
+                    const nextParts = nextLine.split(/\s+/);
+                    
+                    nextParts.forEach(part => {
+                        if (isMacAddress(part)) {
+                            if (!device.path.includes(part)) {
+                                device.path.push(part);
+                            }
+                        }
+                    });
+                    
+                    nextLineIndex++;
+                }
+                
+                // Set device properties
+                device.mac = device.address;
+                device.name = device.identity;
+                
+                deviceCount++;
+                if (deviceCount <= 10) { // Only log first 10 to avoid spam
+                    console.log('Parsed RoMON device #' + deviceCount + ':', {
+                        identity: device.identity,
+                        address: device.address,
+                        cost: device.cost,
+                        hops: device.hops,
+                        pathLength: device.path.length,
+                        path: device.path
+                    });
+                }
+                
+                devices.push(device);
+                
+                // Skip to the line after the path information
+                i = nextLineIndex - 1;
+            } else {
+                console.log('Skipping malformed device line:', trimmedLine);
+            }
+        }
+        
+        i++;
+    }
+    
+    console.log('Total devices parsed this round:', devices.length);
+    return devices;
+}
+
+// Helper function to check if a string is a MAC address
+function isMacAddress(str) {
+    // Match MAC address format like 04:CE:14:F7:B8:D6
+    return /^[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}$/.test(str);
+}
 
 module.exports = router;

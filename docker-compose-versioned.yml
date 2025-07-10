@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   guardian-relay:
-    image: ispacademy/mikrotik-controller:v1.0.1
+    image: ispacademy/mikrotik-controller:v1.3.0
     container_name: guardian-relay
     ports:
       - "3333:3333"

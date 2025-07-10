@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Topology Visualizer - Guardian Relay</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="../Simple_NG_Logo.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../Simple_NG_Logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../Simple_NG_Logo.png">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="network-topology.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <img src="../WB_NG_Logo.png" alt="Network Guardian" class="header-logo">
+                <p class="version-text">Network Topology Visualizer</p>
+            </div>
+        </header>
+
+        <!-- Navigation Bar -->
+        <nav class="feature-nav">
+            <div class="nav-container">
+                <a href="/" class="nav-item">
+                    <span class="nav-icon">🏠</span>
+                    <span class="nav-text">Main Dashboard</span>
+                </a>
+                <a href="/wifi-planner" class="nav-item">
+                    <span class="nav-icon">📡</span>
+                    <span class="nav-text">WiFi Channel Planner</span>
+                </a>
+                <a href="/network-topology" class="nav-item active">
+                    <span class="nav-icon">🌐</span>
+                    <span class="nav-text">Network Topology</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Device Selection Section -->
+        <div class="router-selection" id="deviceSelection">
+            <h2>Device Selection</h2>
+            
+            <div class="recent-routers" id="recentRouters" style="display: none;">
+                <label for="recentSelect">Recent Devices:</label>
+                <select id="recentSelect">
+                    <option value="">Select a recent device...</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <input type="text" id="routerIP" placeholder="Device IP Address (e.g., 192.168.1.1)" />
+                <input type="text" id="username" placeholder="Username" />
+                <input type="password" id="password" placeholder="Password" />
+                <button id="connectBtn">Connect</button>
+            </div>
+            
+            <div class="port-group">
+                <div class="port-field">
+                    <label for="sshPort">SSH Port:</label>
+                    <input type="number" id="sshPort" placeholder="22" value="22" min="1" max="65535" />
+                </div>
+                <div class="port-field">
+                    <label for="apiPort">API Port:</label>
+                    <input type="number" id="apiPort" placeholder="8728" value="8728" min="1" max="65535" />
+                </div>
+                <div class="port-field">
+                    <label for="hopLimit">Max Hops:</label>
+                    <input type="number" id="hopLimit" placeholder="3" value="3" min="1" max="20" />
+                </div>
+            </div>
+            <div id="connectionStatus" class="status"></div>
+        </div>
+
+        <!-- Topology Visualization Section (Hidden Initially) -->
+        <div class="topology-section" id="topologySection" style="display: none;">
+            <div class="topology-header">
+                <div class="device-info-bar">
+                    <span id="connectedDevice"></span>
+                    <span id="deviceCount" class="device-count"></span>
+                    <button id="disconnectBtn" class="disconnect-btn">Disconnect</button>
+                </div>
+                <div class="topology-controls">
+                    <button id="refreshBtn" class="control-btn">🔄 Refresh</button>
+                    <button id="autoLayoutBtn" class="control-btn">📐 Auto Layout</button>
+                    <button id="exportBtn" class="control-btn">💾 Export</button>
+                    <div class="zoom-controls">
+                        <button id="zoomInBtn" class="zoom-btn">➕</button>
+                        <span id="zoomLevel">100%</span>
+                        <button id="zoomOutBtn" class="zoom-btn">➖</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Topology Canvas -->
+            <div class="topology-container" id="topologyContainer">
+                <div class="topology-canvas" id="topologyCanvas">
+                    <!-- Network nodes will be dynamically added here -->
+                </div>
+            </div>
+
+            <!-- Device Details Panel -->
+            <div class="device-details" id="deviceDetails" style="display: none;">
+                <h3>Device Details</h3>
+                <div id="deviceDetailsContent"></div>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Discovering network topology...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div class="error-message" id="errorMessage" style="display: none;">
+            <p id="errorText"></p>
+        </div>
+    </div>
+
+    <script src="network-topology.js"></script>
+</body>
+</html>

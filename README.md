@@ -1,4 +1,4 @@
-# Guardian Relay v1.2.0
+# Guardian Relay v1.3.0
 
 A comprehensive network management platform for MikroTik devices with professional WiFi planning capabilities.
 
@@ -6,10 +6,23 @@ A comprehensive network management platform for MikroTik devices with profession
 - **📡 WiFi Channel Planner**: Standalone tool for designing optimal channel layouts
 - **🔌 Device Management**: Complete MikroTik router, switch, and wireless AP support
 - **🔧 Advanced VLAN Configuration**: Professional Layer 2 switching management
-- **📊 Traffic & Queue Management**: Bandwidth control and real-time monitoring
+- **📊 Traffic & Queue Management**: Bandwidth control with pagination and IP blocking
 - **🎯 Multi-Device Support**: Device-specific control panels with tailored functionality
 
-## 🎉 New in v1.2.0 - WiFi Channel Planner
+## 🎉 New in v1.3.0 - Enhanced Queue Management & IP Blocking
+
+### **Queue Management Improvements**
+- **Pagination System**: Clean 10-items-per-page display for DHCP leases and queues
+- **Show All Queues**: Dedicated button to view all queues without DHCP information
+- **Smart Navigation**: Page selectors at both top and bottom with intelligent page display
+
+### **IP Blocking System**
+- **Quick Actions**: BLOCK/UNBLOCK buttons directly in DHCP leases table
+- **Firewall Integration**: Manages BLOCKED-CUSTOMERS address list automatically
+- **Visual Feedback**: Red BLOCK buttons, green UNBLOCK buttons
+- **Router Time Sync**: Block comments use router's local time, not server UTC
+
+## Previous Release: v1.2.0 - WiFi Channel Planner
 
 ### **Standalone Network Planning Tool**
 - **No Device Connection Required**: Works independently for planning new deployments
