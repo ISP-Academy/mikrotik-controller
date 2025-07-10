@@ -11,7 +11,7 @@ kill $(ps aux | grep 'node src/server.js' | grep -v grep | awk '{print $2}') 2>/
 # Git commands
 echo "Deploying to GitHub..."
 git add -A
-git commit -m "Release Guardian Relay v1.3.0 - Queue Pagination and IP Blocking
+git commit -m "Guardian Relay v1.3.0
 
 - Add pagination for queue management (10 items per page)
 - Add 'Show All Queues' button for viewing all queues
@@ -20,7 +20,7 @@ git commit -m "Release Guardian Relay v1.3.0 - Queue Pagination and IP Blocking
 - Use router local time for block comments
 - Update version to 1.3.0 across all files"
 
-git tag -a v1.3.0 -m "Release v1.3.0 - Queue Pagination and IP Blocking"
+git tag -a v1.3.0 -m "Guardian Relay v1.3.0"
 git push origin main
 git push origin v1.3.0
 

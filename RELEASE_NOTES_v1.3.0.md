@@ -1,4 +1,4 @@
-# Guardian Relay v1.3.0 Release Notes
+# Guardian Relay v1.3.0
 
 ## Release Date: July 10, 2025
 

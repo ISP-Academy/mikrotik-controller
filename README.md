@@ -1,7 +1,5 @@
 # Guardian Relay v1.3.0
 
-A comprehensive network management platform for MikroTik devices with professional WiFi planning capabilities.
-
 ## Features Overview
 - **📡 WiFi Channel Planner**: Standalone tool for designing optimal channel layouts
 - **🔌 Device Management**: Complete MikroTik router, switch, and wireless AP support
